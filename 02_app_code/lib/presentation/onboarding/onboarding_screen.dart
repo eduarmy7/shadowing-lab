@@ -68,13 +68,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _complete() async {
+    // 2026-08-08: 마이크 권한 요청 제거 — 앱 어디에도 실제 오디오 녹음/분석 코드가
+    // 없다("따라 말하기" 단계는 사용자가 스스로 소리 내어 말하는 시간을 확보해주는
+    // 타이머일 뿐, 앱은 그 소리를 듣거나 저장하지 않는다). 있으나 마나 한 권한을
+    // 요청해 사용자를 불필요하게 막을 이유가 없다.
     final permissionService = ref.read(permissionServiceProvider);
-    final micResult = await permissionService.requestMicrophone();
     final mediaResult = await permissionService.requestMediaLibrary();
 
     // 권한 거부 시에도 진행 허용 — "나중에 설정에서 허용 가능" 안내 후 계속.
-    if (mounted &&
-        (micResult != AppPermissionStatus.granted || mediaResult != AppPermissionStatus.granted)) {
+    if (mounted && mediaResult != AppPermissionStatus.granted) {
       setState(() => _showPermissionNotice = true);
       await Future.delayed(const Duration(milliseconds: 900));
     }

@@ -97,7 +97,7 @@ lib/
 │   │                                    이제 로컬 무음감지/자막파싱 실패를 뜻함, 벤더 오류 아님)
 │   ├── audio/audio_player_service.dart — just_audio 래핑, "문장 구간 재생" 도메인 개념 노출
 │   ├── ads/ad_service.dart           — 광고 SDK 연동 지점(인터페이스 + NoOpAdService)
-│   ├── permissions/permission_service.dart — 마이크/파일 권한 요청 래퍼
+│   ├── permissions/permission_service.dart — 파일 권한 요청 래퍼(2026-08-08: 마이크 권한 메서드 제거)
 │   ├── router/app_router.dart        — go_router 라우팅 테이블
 │   ├── utils/formatters.dart         — 시간/퍼센트 포맷 유틸
 │   └── utils/subtitle_parser.dart    — SRT/VTT 파서(순수 파일 파싱, AI/네트워크 없음) — 문장분리의
@@ -209,7 +209,6 @@ UX 문서 "공통 위젯화 우선순위" 7종을 모두 구현 완료:
 | 문장분리 실패(#3, 로컬) | `SegmentationFailure` + `SegmentationFailureReason`(`unsupportedSubtitleFormat`/`noClearSilenceDetected`/`unknown`) → `AnalyzingController.retry()` | #3 화면 에러 메시지("지원하지 않는 자막 형식이에요"/"뚜렷한 무음 구간을 찾지 못했어요") + 재시도 CTA + "수동으로 나누기" |
 | 백그라운드 분석 작업이 OS에 의해 강제 종료됨(#1 홈, 2026-08-08 실기기 테스트로 발견·수정) | `home_screen.dart`의 `_MediaCard`가 `ref.exists(analyzingControllerProvider(item.id))`로 `analyzingControllerProvider` 인스턴스 생존 여부를 확인 — `status == analyzing`인데 컨트롤러가 존재하지 않으면 "진행 중"이 아니라 "멈춤"으로 판정. 삼성 등 일부 제조사의 공격적 백그라운드 프로세스 관리로 분석 중 앱이 백그라운드에 있는 동안 프로세스가 죽어, 퍼센트가 그대로 멈춰 있는데도 마치 진행 중인 것처럼 보이는 문제를 해결 | "분석이 멈췄어요" 재개 유도 카드 노출(탭하면 분석 화면으로 재진입해 새 컨트롤러 인스턴스로 자동 재시작) — 멈춘 퍼센트를 그대로 방치해 사용자를 오도하지 않음 |
 | 오디오 재생 실패 | `ShadowingController._playWithRetry` — 1회 자동 재시도 후 실패 시 토스트 | #5 인라인 토스트(`AppToast`) |
-| 마이크 권한 거부 | `micGranted=false` → "따라 말하기" 단계를 자동으로 대기시간으로 대체 | #5 1회 안내 토스트, 학습 루프는 듣기 전용으로 정상 진행 |
 | 파일 형식/용량 오류 | `ValidationFailure` | #2 인라인 에러 + "다른 파일 선택" |
 | 결제 실패(광고 제거 구매) | `PurchaseFailure` | `AdRemovalSheet` 인라인 에러 + 재시도(2026-08-08: 대상이 `PaywallSheet`에서 `AdRemovalSheet`로 변경) |
 | 데이터 파싱 오류(로컬 캐시) | `LocalKvStore.getJson`에서 예외 시 `null` 반환 → 각 Repository가 기본값으로 폴백 | 화면은 Empty 상태로 정상 렌더(크래시 방지) |
@@ -307,7 +306,7 @@ Lab"으로 그대로 이관되어 그쪽 아키텍처 문서가 다룬다. `canc
 | 권한 | iOS | Android | 용도 | 필수/선택 |
 |---|---|---|---|---|
 | 파일/미디어 접근 | 시스템 문서 피커 사용(별도 Info.plist 권한 불요) | `READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO`(API 33+) 또는 `READ_EXTERNAL_STORAGE` | 로컬 음성/영상 업로드(#2) | 필수 |
-| 마이크 | `NSMicrophoneUsageDescription` | `RECORD_AUDIO` | 쉐도잉 "따라 말하기" 녹음(#5) | **선택** — 거부 시 듣기 전용으로 자동 대체(`PermissionService`, `ShadowingController.micGranted`) |
+| ~~마이크~~ | ~~`NSMicrophoneUsageDescription`~~ | ~~`RECORD_AUDIO`~~ | (2026-08-08 제거) 앱은 어디에서도 마이크 오디오를 녹음/분석하지 않는다 — "따라 말하기" 단계는 타이머일 뿐이라 권한 요청 자체가 불필요했다. `PermissionService.requestMicrophone`/`checkMicrophone`, `ShadowingController.micGranted`, `AndroidManifest.xml`의 `RECORD_AUDIO` 모두 삭제 완료 | — |
 | 알림 | `UNUserNotificationCenter` | `POST_NOTIFICATIONS`(API 33+) | 학습 리마인더(#12, 현재 UI만 존재·스케줄링 미구현) | 선택 |
 | 인앱결제 | StoreKit | Google Play Billing | 광고 제거 단발성 구매(`AdRemovalSheet`, 2026-08-08: 옛 PRO 구독을 대체) | 선택(구매 안 해도 앱 전체 기능 사용 가능, 광고만 계속 노출) |
 | 백그라운드 오디오 | `UIBackgroundModes: audio` | `FOREGROUND_SERVICE`(미디어 재생) | `just_audio_background` 알림 채널 재생 | 필수 |

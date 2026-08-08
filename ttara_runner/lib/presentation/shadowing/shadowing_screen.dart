@@ -17,7 +17,8 @@ import 'shadowing_controller.dart';
 import 'shadowing_options_sheet.dart';
 
 /// #5 쉐도잉 학습 화면 — 앱의 심장. 화면에는 딱 4가지만: 문장 카드, 반복 진행 상태,
-/// 재생/녹음 원형 트리거, 최소 보조 컨트롤. 광고·알림 절대 없음(01_ux_design.md).
+/// 재생/말하기 전환 원형 트리거(녹음은 하지 않음 — 재생↔말하기 단계 표시용), 최소
+/// 보조 컨트롤. 광고·알림 절대 없음(01_ux_design.md).
 class ShadowingScreen extends ConsumerStatefulWidget {
   final String mediaId;
 
@@ -28,7 +29,6 @@ class ShadowingScreen extends ConsumerStatefulWidget {
 }
 
 class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
-  bool _micBannerShown = false;
   bool _navigatedToSummary = false;
 
   @override
@@ -82,14 +82,6 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
         appBar: AppBar(leading: BackButton(onPressed: () => context.go('/home'))),
         body: Center(child: Text(l10n.noSentencesToStudy)),
       );
-    }
-
-    if (!state.micGranted && !_micBannerShown) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        setState(() => _micBannerShown = true);
-        AppToast.show(context, l10n.micNotGrantedNotice, type: AppToastType.info);
-      });
     }
 
     final segment = state.currentSegment!;
@@ -271,7 +263,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                                 iconSize: 32,
                                 onTap: controller.restartCurrentStep,
                                 semanticLabel:
-                                    state.phase == ShadowingPhase.speaking ? l10n.recordingInProgress : l10n.playListenLabel,
+                                    state.phase == ShadowingPhase.speaking ? l10n.speakingInProgress : l10n.playListenLabel,
                               ),
                               const SizedBox(width: AppSpacing.lg),
                               // 2026-08-06: 한 문장씩 보기에도 "한꺼번에 보기"와 마찬가지로

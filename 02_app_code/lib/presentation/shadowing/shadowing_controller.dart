@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/permissions/permission_service.dart';
 import '../../domain/entities/learning_settings.dart';
 import '../../domain/entities/sentence_segment.dart';
 import '../../domain/entities/user_stats.dart';
@@ -23,7 +22,6 @@ class ShadowingSessionState {
   final bool handsFree;
   final double playbackSpeed;
   final bool showTranslation;
-  final bool micGranted;
   final bool isLoading;
   final bool isBuffering;
   final String? error;
@@ -47,7 +45,6 @@ class ShadowingSessionState {
     this.handsFree = true,
     this.playbackSpeed = AppConstants.defaultPlaybackSpeed,
     this.showTranslation = false,
-    this.micGranted = false,
     this.isLoading = true,
     this.isBuffering = false,
     this.error,
@@ -73,7 +70,6 @@ class ShadowingSessionState {
     bool? handsFree,
     double? playbackSpeed,
     bool? showTranslation,
-    bool? micGranted,
     bool? isLoading,
     bool? isBuffering,
     String? error,
@@ -95,7 +91,6 @@ class ShadowingSessionState {
       handsFree: handsFree ?? this.handsFree,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       showTranslation: showTranslation ?? this.showTranslation,
-      micGranted: micGranted ?? this.micGranted,
       isLoading: isLoading ?? this.isLoading,
       isBuffering: isBuffering ?? this.isBuffering,
       error: clearError ? null : (error ?? this.error),
@@ -140,8 +135,6 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       _audioSource = media?.localPath ?? '';
       final startIndex = media?.lastPlayedSentenceIndex ?? 0;
 
-      final micStatus = await ref.read(permissionServiceProvider).checkMicrophone();
-
       state = state.copyWith(
         segments: segments,
         isLoading: false,
@@ -150,7 +143,6 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         playbackSpeed: settings.defaultPlaybackSpeed,
         handsFree: settings.handsFreeMode,
         showTranslation: settings.autoShowTranslation,
-        micGranted: micStatus == AppPermissionStatus.granted,
         sentenceGapMode: settings.sentenceGapMode,
       );
 
@@ -179,7 +171,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       await Future.delayed(const Duration(milliseconds: 300));
       if (myGen != _gen || !mounted) return;
 
-      // ── 2) 따라 말하기 (마이크 없으면 듣기 전용으로 자동 대체) ──
+      // ── 2) 따라 말하기 (앱은 녹음/분석하지 않음 — 사용자가 소리 내어 말할 시간만 확보) ──
       state = state.copyWith(phase: ShadowingPhase.speaking);
       final speakingDurationMs = state.sentenceGapMode.gapMsFor(segment.durationMs);
       await Future.delayed(Duration(milliseconds: speakingDurationMs));

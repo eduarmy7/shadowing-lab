@@ -33,7 +33,7 @@ class ValidationFailure extends Failure {
   const ValidationFailure(super.message);
 }
 
-/// 카메라/마이크/파일 접근 권한 거부.
+/// 파일 접근 권한 거부.
 class PermissionFailure extends Failure {
   const PermissionFailure([super.message = '권한이 필요한 기능이에요']);
 }

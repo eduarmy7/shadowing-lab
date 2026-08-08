@@ -2,7 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- 02_app_code/README.md 권한표(04_store_listing.md 04번 문서와 동일) 반영 -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- 2026-08-08: RECORD_AUDIO 제거 — 앱은 어디에서도 마이크 오디오를 실제로 녹음/분석하지 않는다. -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
