@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../domain/entities/sentence_segment.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 enum SentenceCardVariant { list, learning }
 enum SentenceCardState { idle, playing, recording, completed, warning }
@@ -47,6 +48,7 @@ class SentenceCard extends StatelessWidget {
 
   Widget _buildLearning(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -86,7 +88,7 @@ class SentenceCard extends StatelessWidget {
                   Icon(Icons.hearing, size: 32, color: theme.colorScheme.onSurfaceVariant),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    '자막 없이, 듣고 따라 말해보세요',
+                    l10n.noSubtitleListenPrompt,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
@@ -103,7 +105,7 @@ class SentenceCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    showTranslation ? segment.translation! : '한글 뜻 보기',
+                    showTranslation ? segment.translation! : l10n.showTranslationLabel,
                     style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                   Icon(
@@ -122,6 +124,7 @@ class SentenceCard extends StatelessWidget {
 
   Widget _buildList(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final semantic = theme.extension<AppSemanticColors>()!;
     final isWarning = state == SentenceCardState.warning;
 
@@ -186,7 +189,7 @@ class SentenceCard extends StatelessWidget {
                         children: [
                           Icon(Icons.warning_amber_rounded, size: 13, color: semantic.warning),
                           const SizedBox(width: 3),
-                          Text('확인 필요',
+                          Text(l10n.needsReviewBadge,
                               style: AppTypography.caption.copyWith(color: semantic.warning, fontSize: 11)),
                         ],
                       ),
@@ -197,7 +200,7 @@ class SentenceCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                segment.text ?? '(자막 없음 · 듣고 따라 말하는 구간)',
+                segment.text ?? l10n.noSubtitleSegmentLabel,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                   fontStyle: segment.hasText ? FontStyle.normal : FontStyle.italic,

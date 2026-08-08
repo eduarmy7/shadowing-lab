@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_motion.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// 쉐도잉 학습 화면(#5) "반복 횟수 도트" 컴포넌트. 3~10개 가변, 완료된 도트는
 /// 스케일 팝(1→1.15→1) 애니메이션과 함께 채워진다.
@@ -20,7 +21,7 @@ class RepeatDotIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Semantics(
-      label: '$total회 중 $completed회 완료',
+      label: AppLocalizations.of(context)!.repeatDotsCompletedLabel(total, completed),
       excludeSemantics: true,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

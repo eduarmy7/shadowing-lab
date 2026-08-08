@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../common_widgets/app_toast.dart';
 import '../common_widgets/paywall_sheet.dart';
 import '../common_widgets/primary_button.dart';
@@ -20,7 +21,9 @@ class ContentDetailScreen extends ConsumerWidget {
       await player.setSource(previewUrl, isLocal: false);
       await player.play();
     } catch (_) {
-      if (context.mounted) AppToast.show(context, '미리듣기를 재생할 수 없어요', type: AppToastType.error);
+      if (context.mounted) {
+        AppToast.show(context, AppLocalizations.of(context)!.previewPlaybackError, type: AppToastType.error);
+      }
     }
   }
 
@@ -45,6 +48,7 @@ class ContentDetailScreen extends ConsumerWidget {
     final subscription = ref.watch(subscriptionStatusProvider);
     final isSubscribed = subscription.maybeWhen(data: (s) => s.isActive, orElse: () => false);
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(),
@@ -53,7 +57,7 @@ class ContentDetailScreen extends ConsumerWidget {
         error: (e, st) => Center(
           child: TextButton(
             onPressed: () => ref.invalidate(libraryContentDetailProvider(contentId)),
-            child: const Text('다시 시도'),
+            child: Text(l10n.retry),
           ),
         ),
         data: (content) => Padding(
@@ -74,17 +78,22 @@ class ContentDetailScreen extends ConsumerWidget {
               Text(content.title, style: theme.textTheme.headlineMedium),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '${content.source} · ${content.durationSec ~/ 60}:${(content.durationSec % 60).toString().padLeft(2, '0')} · ${content.difficultyLabel} · 문장 ${content.sentenceCount}',
+                l10n.contentDetailMeta(
+                  content.source,
+                  '${content.durationSec ~/ 60}:${(content.durationSec % 60).toString().padLeft(2, '0')}',
+                  content.difficultyLabel,
+                  content.sentenceCount,
+                ),
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: AppSpacing.lg),
               SecondaryButton(
-                label: '▶ 30초 미리 듣기',
+                label: l10n.preview30SecButton,
                 onPressed: () => _preview(context, ref, content.previewAudioUrl),
               ),
               const SizedBox(height: AppSpacing.sm),
               PrimaryButton(
-                label: isSubscribed ? '전체 학습하기' : 'PRO로 전체 학습하기',
+                label: isSubscribed ? l10n.studyAllButton : l10n.studyAllProButton,
                 onPressed: () => _startLearning(context, ref, isSubscribed),
               ),
             ],

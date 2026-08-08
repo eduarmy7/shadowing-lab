@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../domain/entities/library_content.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../common_widgets/pro_badge.dart';
 import '../common_widgets/skeleton_loader.dart';
 import 'library_controller.dart';
@@ -16,6 +17,7 @@ class LibraryHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final subscription = ref.watch(subscriptionStatusProvider);
     final today = ref.watch(libraryTodayProvider);
     final categoriesAsync = ref.watch(libraryCategoriesProvider);
@@ -23,7 +25,7 @@ class LibraryHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('라이브러리'),
+        title: Text(l10n.tabLibrary),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.md),
@@ -47,23 +49,23 @@ class LibraryHomeScreen extends ConsumerWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('무료로 3개 체험하기', style: theme.textTheme.bodyMedium),
+                    child: Text(l10n.libraryFreeTrialBanner, style: theme.textTheme.bodyMedium),
                   ),
-                  TextButton(onPressed: () => context.push('/my/subscription'), child: const Text('알아보기')),
+                  TextButton(onPressed: () => context.push('/my/subscription'), child: Text(l10n.learnMoreButton)),
                 ],
               ),
             ),
-          Text('오늘의 뉴스 (매일 06시 갱신)', style: AppTypography.title.copyWith(color: theme.colorScheme.onSurface)),
+          Text(l10n.todayNewsTitle, style: AppTypography.title.copyWith(color: theme.colorScheme.onSurface)),
           const SizedBox(height: AppSpacing.sm),
           today.when(
             loading: () => const SkeletonCardList(count: 2),
             error: (e, st) => _SectionError(onRetry: () => ref.invalidate(libraryTodayProvider)),
             data: (items) => items.isEmpty
-                ? Text('오늘의 콘텐츠를 불러올 수 없어요', style: theme.textTheme.bodySmall)
+                ? Text(l10n.todayContentLoadError, style: theme.textTheme.bodySmall)
                 : Column(children: [for (final c in items) _ContentCard(content: c, isSubscribed: isSubscribed)]),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('주제별', style: AppTypography.title.copyWith(color: theme.colorScheme.onSurface)),
+          Text(l10n.byTopicTitle, style: AppTypography.title.copyWith(color: theme.colorScheme.onSurface)),
           const SizedBox(height: AppSpacing.sm),
           categoriesAsync.when(
             loading: () => const SizedBox(height: 40),
@@ -145,6 +147,7 @@ class _ContentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final locked = !isSubscribed;
     return Container(
       margin: compact ? null : const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -186,7 +189,7 @@ class _ContentCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${content.source} · ${content.durationSec ~/ 60}분 · ${content.difficultyLabel}',
+                            l10n.contentCardMeta(content.source, content.durationSec ~/ 60, content.difficultyLabel),
                             style: theme.textTheme.bodySmall,
                           ),
                         ],
@@ -215,12 +218,13 @@ class _SectionError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: Row(
         children: [
-          const Expanded(child: Text('불러오지 못했어요')),
-          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          Expanded(child: Text(l10n.sectionLoadError)),
+          TextButton(onPressed: onRetry, child: Text(l10n.retry)),
         ],
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 enum HandleSide { left, right }
 
@@ -33,14 +34,15 @@ class BoundaryHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final color = isSnapped
         ? Theme.of(context).colorScheme.secondary
         : (isDragging ? scheme.primary : scheme.primary.withValues(alpha: 0.6));
 
     return Semantics(
-      label: side == HandleSide.left ? '문장 시작 경계 조정 핸들' : '문장 끝 경계 조정 핸들',
-      increasedValue: '+0.1초',
-      decreasedValue: '-0.1초',
+      label: side == HandleSide.left ? l10n.boundaryHandleStartLabel : l10n.boundaryHandleEndLabel,
+      increasedValue: l10n.incrementPoint1Sec,
+      decreasedValue: l10n.decrementPoint1Sec,
       onIncrease: onIncrease,
       onDecrease: onDecrease,
       child: GestureDetector(

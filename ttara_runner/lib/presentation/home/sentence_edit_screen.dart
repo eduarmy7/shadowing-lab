@@ -7,6 +7,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../domain/entities/sentence_segment.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../common_widgets/app_toast.dart';
 import '../common_widgets/boundary_handle.dart';
 import '../common_widgets/primary_button.dart';
@@ -86,7 +87,9 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
       });
       await player.playSegmentOnce(startMs: segment.startMs, endMs: segment.endMs);
     } catch (_) {
-      if (mounted) AppToast.show(context, '미리듣기를 재생할 수 없어요', type: AppToastType.error);
+      if (mounted) {
+        AppToast.show(context, AppLocalizations.of(context)!.previewPlaybackError, type: AppToastType.error);
+      }
     } finally {
       await _positionSub?.cancel();
       if (mounted) setState(() => _isPlaying = false);
@@ -117,29 +120,36 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
     // 분리 모드를 유지해서 사용자가 다른 위치를 다시 골라볼 수 있게 한다.
     final success = controller.splitSegmentAt(segment.id, splitMs);
     if (!success) {
-      if (mounted) AppToast.show(context, '이 문장은 너무 짧아서 나눌 수 없어요', type: AppToastType.error);
+      if (mounted) {
+        AppToast.show(context, AppLocalizations.of(context)!.sentenceTooShortToSplit, type: AppToastType.error);
+      }
       return;
     }
     setState(() => _isSplitMode = false);
-    if (mounted) AppToast.show(context, '문장을 나눴어요', type: AppToastType.success);
+    if (mounted) AppToast.show(context, AppLocalizations.of(context)!.sentenceSplitSuccess, type: AppToastType.success);
   }
 
   Future<void> _merge(SegmentationReviewController controller, SentenceSegment segment) async {
     controller.mergeWithNext(segment.id);
-    if (mounted) AppToast.show(context, '다음 문장과 합쳤어요', type: AppToastType.success);
+    if (mounted) {
+      AppToast.show(context, AppLocalizations.of(context)!.sentenceMergedSuccess, type: AppToastType.success);
+    }
   }
 
   /// 2026-08-06: 경계 드래그/스테퍼는 더 이상 자동저장되지 않는다 — 사용자가 길이를
   /// 몇 번이고 조정해본 뒤, 마음에 들 때 이 버튼을 눌러야 실제로 저장된다.
   Future<void> _save(SegmentationReviewController controller) async {
     await controller.commitBoundaryEdit();
-    if (mounted) AppToast.show(context, '문장 길이를 저장했어요', type: AppToastType.success);
+    if (mounted) {
+      AppToast.show(context, AppLocalizations.of(context)!.sentenceLengthSaved, type: AppToastType.success);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(segmentationReviewProvider(widget.mediaId));
     final controller = ref.read(segmentationReviewProvider(widget.mediaId).notifier);
+    final l10n = AppLocalizations.of(context)!;
 
     if (state.isLoading || state.segments.isEmpty) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -152,15 +162,16 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.close), tooltip: '편집 끝내기', onPressed: () => context.pop()),
-        title: Text('${index + 1} / ${state.segments.length} 문장 편집'),
+        leading:
+            IconButton(icon: const Icon(Icons.close), tooltip: l10n.finishEditingTooltip, onPressed: () => context.pop()),
+        title: Text(l10n.sentenceEditTitle(index + 1, state.segments.length)),
         actions: [
           // 2026-08-06: 경계 드래그/스테퍼는 자동저장되지 않으므로, 길이 조정을 다 마친
           // 뒤 이 버튼을 눌러야 저장된다 — 항상 보이는 별도 버튼으로 명확하게 노출.
           TextButton.icon(
             onPressed: () => _save(controller),
             icon: const Icon(Icons.save_outlined, size: 18),
-            label: const Text('저장'),
+            label: Text(l10n.saveButton),
           ),
         ],
       ),
@@ -184,8 +195,11 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
               // 문장에서는 드래그 결과가 거의 안 바뀐 것처럼 보이므로, 0.1초 단위로
               // 여기에만 별도 표시한다.
               Text(
-                '${Formatters.msToClockPrecise(segment.startMs)} – ${Formatters.msToClockPrecise(segment.endMs)}'
-                '  (${(segment.durationMs / 1000).toStringAsFixed(1)}초)',
+                l10n.durationRangePrecise(
+                  Formatters.msToClockPrecise(segment.startMs),
+                  Formatters.msToClockPrecise(segment.endMs),
+                  (segment.durationMs / 1000).toStringAsFixed(1),
+                ),
                 style: AppTypography.body.copyWith(
                   fontWeight: FontWeight.w600,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -221,13 +235,13 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(onPressed: _cancelSplitMode, child: const Text('취소')),
+                      child: OutlinedButton(onPressed: _cancelSplitMode, child: Text(l10n.cancel)),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       flex: 2,
                       child: PrimaryButton(
-                        label: '이 위치에서 분리',
+                        label: l10n.splitAtThisPosition,
                         onPressed: () => _confirmSplit(controller, segment),
                       ),
                     ),
@@ -240,7 +254,7 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
                       child: OutlinedButton.icon(
                         onPressed: hasNext ? () => _merge(controller, segment) : null,
                         icon: const Icon(Icons.call_merge, size: 18),
-                        label: const Text('다음 문장과 병합'),
+                        label: Text(l10n.mergeWithNextSentence),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -248,7 +262,7 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
                       child: OutlinedButton.icon(
                         onPressed: _startSplitMode,
                         icon: const Icon(Icons.call_split, size: 18),
-                        label: const Text('분리'),
+                        label: Text(l10n.splitButton),
                       ),
                     ),
                   ],
@@ -259,7 +273,7 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.skip_previous),
-                    tooltip: '이전 문장',
+                    tooltip: l10n.previousSentenceTooltip,
                     onPressed: hasPrev ? () => setState(() { _index--; _isSplitMode = false; }) : null,
                   ),
                   Row(
@@ -267,7 +281,7 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
                     children: [
                       Semantics(
                         button: true,
-                        label: '재생, 원어민 음성 듣기',
+                        label: l10n.playListenLabel,
                         child: IconButton.filled(
                           icon: Icon(_isPlaying ? Icons.volume_up : Icons.play_arrow),
                           iconSize: 28,
@@ -279,7 +293,7 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
                       // 버튼을 뒀다(학습 화면들과 동일한 패턴).
                       Semantics(
                         button: true,
-                        label: '정지',
+                        label: l10n.stopLabel,
                         child: IconButton.filled(
                           icon: const Icon(Icons.stop_rounded),
                           iconSize: 28,
@@ -294,7 +308,7 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.skip_next),
-                    tooltip: '다음 문장',
+                    tooltip: l10n.nextSentenceTooltip,
                     onPressed: hasNext ? () => setState(() { _index++; _isSplitMode = false; }) : null,
                   ),
                 ],
@@ -482,8 +496,8 @@ class _EditWaveformState extends State<_EditWaveform> {
         const SizedBox(height: AppSpacing.xs),
         Text(
           widget.isSplitMode
-              ? '새로 나타난 막대를 드래그해서 나눌 위치를 고르세요'
-              : '좌우 끝의 막대를 드래그하면 문장 길이를 조절해요 (다 마치면 위의 저장 버튼을 누르세요)',
+              ? AppLocalizations.of(context)!.splitDragInstruction
+              : AppLocalizations.of(context)!.boundaryDragInstruction,
           textAlign: TextAlign.center,
           style: AppTypography.caption.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),

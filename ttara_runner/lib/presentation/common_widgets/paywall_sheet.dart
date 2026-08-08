@@ -4,6 +4,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
 import '../../domain/entities/subscription.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../providers/repository_providers.dart';
 import 'app_toast.dart';
 import 'primary_button.dart';
@@ -34,10 +35,10 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
       await ref.read(subscriptionRepositoryProvider).purchase(_selected);
       if (!mounted) return;
       Navigator.of(context).pop(true);
-      AppToast.show(context, 'PRO 구독이 시작됐어요', type: AppToastType.success);
+      AppToast.show(context, AppLocalizations.of(context)!.proSubscriptionStarted, type: AppToastType.success);
     } catch (_) {
       // 결제 실패 시 인라인 에러 + 재시도 (#8/#9 상태 처리 명세).
-      setState(() => _error = '결제 처리에 실패했어요. 다시 시도해주세요.');
+      if (mounted) setState(() => _error = AppLocalizations.of(context)!.paymentFailedRetry);
     } finally {
       if (mounted) setState(() => _isPurchasing = false);
     }
@@ -46,6 +47,7 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final semantic = theme.extension<AppSemanticColors>()!;
 
     return SafeArea(
@@ -75,16 +77,16 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
               children: [
                 Icon(Icons.workspace_premium, color: semantic.proGold),
                 const SizedBox(width: AppSpacing.xs),
-                Text('쉐도잉랩 프리미엄', style: theme.textTheme.titleMedium),
+                Text(l10n.appPremiumTitle, style: theme.textTheme.titleMedium),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '매일 갱신되는 뉴스·회화로 끊임없이 쉐도잉하세요',
+              l10n.premiumSubtitle,
               style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.md),
-            ..._benefits.map(
+            ..._benefits(l10n).map(
               (b) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Row(
@@ -114,14 +116,14 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
               const SizedBox(height: AppSpacing.sm),
             ],
             PrimaryButton(
-              label: '시작하기 (7일 무료)',
+              label: l10n.startFreeTrialButton,
               isLoading: _isPurchasing,
               onPressed: _purchase,
             ),
             const SizedBox(height: AppSpacing.sm),
             Center(
               child: Text(
-                '구독 취소는 언제든 가능',
+                l10n.cancelAnytimeNotice,
                 style: AppTypography.caption.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ),
@@ -131,7 +133,8 @@ class _PaywallSheetState extends ConsumerState<PaywallSheet> {
     );
   }
 
-  static const _benefits = ['매일 새 콘텐츠', '광고 없이 학습', '무제한 반복/속도조절'];
+  static List<String> _benefits(AppLocalizations l10n) =>
+      [l10n.benefitDailyContent, l10n.benefitNoAds, l10n.benefitUnlimitedRepeat];
 }
 
 class _PlanCard extends StatelessWidget {
@@ -186,7 +189,7 @@ class _PlanCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  '인기',
+                  AppLocalizations.of(context)!.recommendedBadge,
                   style: AppTypography.caption.copyWith(color: theme.colorScheme.onPrimary),
                 ),
               ),
