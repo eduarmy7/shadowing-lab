@@ -1,7 +1,5 @@
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:flutter/foundation.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart' as jab;
 
 import '../constants/app_constants.dart';
 import '../../domain/entities/sentence_segment.dart';
@@ -78,29 +76,34 @@ class SilenceDetector {
   }
 
   /// `audio_waveforms`는 파형 "모양"만 다루고 재생 길이를 알려주지 않으므로, 표본을
-  /// 실제 ms 단위로 환산하려면 파일 길이를 별도로 알아야 한다 — 이미 의존성에 있는
-  /// `just_audio`로 잠깐 로드했다 바로 버리는 방식으로 얻는다(재생하지 않음). 이 프로브
-  /// 자체는 빠르다(118분짜리 실제 파일 기준 1초 미만) — [detect]가 내부에서도 쓰지만,
+  /// 실제 ms 단위로 환산하려면 파일 길이를 별도로 알아야 한다. 이 프로브 자체는
+  /// 빠르다(메타데이터만 읽고 전체 디코드는 하지 않음) — [detect]가 내부에서도 쓰지만,
   /// 호출측이 본 분석을 시작하기 전에 예상 소요시간을 먼저 보여주고 싶을 때도 이 메서드를
   /// 직접 불러 재사용할 수 있게 public으로 둔다.
+  ///
+  /// **2026-08-08 버그 수정**: 원래는 `just_audio`의 `AudioPlayer`로 잠깐 로드했다 바로
+  /// 버리는 방식이었다 — 그런데 `main.dart`의 `JustAudioBackground.init()`이 앱 전역에
+  /// 걸려 있어, `just_audio_background`는 프로세스당 **단 하나의** `AudioPlayer` 인스턴스만
+  /// 허용한다. 사용자가 쉐도잉 화면에서 문장을 한 번이라도 재생하면(`audioPlayerServiceProvider`,
+  /// 의도적으로 앱 전역 싱글톤 — 그 파일의 주석 참고) 그 순간부터 이 프로브가 두 번째
+  /// 인스턴스를 만들려다 `PlatformException(just_audio_background supports only a single
+  /// player instance)`를 던진다. 실기기에서 재현: 파일을 분석→쉐도잉 화면에서 재생→홈으로
+  /// 나와 새 파일을 분석하면 이 프로브가 매번 실패해 분석이 "0%에서 멈춘 것처럼" 보였다
+  /// (예외가 이 메서드의 try/catch 바깥의 비동기 경로로 새어나가 상위에서 미처리 예외로
+  /// 잡혔다). `audio_waveforms`의 `PlayerController`는 `just_audio`와 완전히 분리된 자체
+  /// 네이티브 플레이어(키별로 여러 인스턴스 동시 허용)라 이 제약이 없다 — 이미
+  /// `_extractAmplitudes`에서 파형 추출에 쓰고 있으므로 길이 조회에도 그대로 재사용한다.
   Future<int> probeDurationMs(String localFilePath) async {
-    final probe = AudioPlayer();
+    final controller = PlayerController();
     try {
-      // main.dart의 JustAudioBackground.init()이 앱 전역에 걸려 있어, 모든
-      // AudioSource는 MediaItem 태그가 반드시 있어야 한다(없으면 assert 실패) —
-      // 이 플레이어는 알림/재생 UI에 노출되지 않는 내부 probe라 최소 태그만 채운다.
-      final duration = await probe.setAudioSource(
-        AudioSource.uri(
-          Uri.file(localFilePath),
-          tag: jab.MediaItem(id: localFilePath, title: 'silence-detector-probe'),
-        ),
-      );
-      return duration?.inMilliseconds ?? 0;
+      await controller.preparePlayer(path: localFilePath, shouldExtractWaveform: false);
+      final duration = await controller.getDuration(DurationType.max);
+      return duration > 0 ? duration : 0;
     } catch (e, st) {
       debugPrint('[SilenceDetector] _probeDurationMs failed: $e\n$st');
       return 0;
     } finally {
-      await probe.dispose();
+      controller.dispose();
     }
   }
 
