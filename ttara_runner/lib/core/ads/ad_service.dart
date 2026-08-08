@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 ///
 /// 배치 원칙(01_ux_design.md):
 /// - 배너: [TabScaffold] 레벨에서 하단 탭바 바로 위, 콘텐츠와 16dp 여백으로 분리.
-/// - 전면: 세션 종료(#6) 또는 문장 [AppConstants.interstitialAdEverySentences]개마다
-///   자연스러운 전환 지점에서만 트리거. 학습 화면(#5) 내부에서는 절대 호출 금지.
+/// - 전면: 세션 종료(#6) 화면 진입 시점에만 트리거. 학습 화면(#5) 내부에서는 절대 호출 금지
+///   (Hands-free 루프를 강제로 끊게 되므로 — 2026-08-08 확정, 문장 단위 트리거는 폐기).
 abstract class AdService {
   /// 배너 광고 슬롯 위젯. 로드 실패/미초기화 시에도 레이아웃이 깨지지 않도록
   /// 항상 고정 높이 컨테이너를 반환해야 한다.

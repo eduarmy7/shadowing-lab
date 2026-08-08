@@ -1,3 +1,6 @@
+# English News Shadowing Lab is a separate app with its own git repo, not part of ShadowingLab
+/news_shadowing_lab/
+
 # Debug/scratch artifacts from manual testing sessions (screenshots, uiautomator dumps, build logs)
 /build_log*.txt
 /dump*.xml

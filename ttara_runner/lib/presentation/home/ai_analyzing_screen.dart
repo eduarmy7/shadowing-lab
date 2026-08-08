@@ -57,7 +57,7 @@ class _AiAnalyzingScreenState extends ConsumerState<AiAnalyzingScreen> {
 
     ref.listen(analyzingControllerProvider(mediaId), (prev, next) {
       if (next.phase == AnalyzingPhase.succeeded) {
-        context.pushReplacement('/shadowing/$mediaId?source=local');
+        context.pushReplacement('/shadowing/$mediaId');
       }
     });
 
@@ -114,7 +114,7 @@ class _AiAnalyzingScreenState extends ConsumerState<AiAnalyzingScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   TextButton(
-                    onPressed: () => context.pushReplacement('/shadowing/$mediaId?source=local'),
+                    onPressed: () => context.pushReplacement('/shadowing/$mediaId'),
                     child: Text(l10n.manualSplit),
                   ),
                 ],

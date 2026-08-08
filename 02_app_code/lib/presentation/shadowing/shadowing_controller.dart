@@ -111,8 +111,8 @@ class ShadowingSessionState {
 }
 
 final shadowingControllerProvider = StateNotifierProvider.autoDispose
-    .family<ShadowingController, ShadowingSessionState, ({String mediaId, String source})>(
-  (ref, args) => ShadowingController(ref, args.mediaId, args.source),
+    .family<ShadowingController, ShadowingSessionState, String>(
+  (ref, mediaId) => ShadowingController(ref, mediaId),
 );
 
 /// #5 쉐도잉 학습 화면 뷰모델 — 앱의 심장. 원버튼(듣기↔말하기) 자동 루프를 상태머신으로 구현.
@@ -124,39 +124,21 @@ final shadowingControllerProvider = StateNotifierProvider.autoDispose
 class ShadowingController extends StateNotifier<ShadowingSessionState> {
   final Ref ref;
   final String mediaId;
-  final String source; // 'local' | 'library'
 
   int _gen = 0;
   String _audioSource = '';
-  bool _isLocalAudio = true;
 
-  ShadowingController(this.ref, this.mediaId, this.source) : super(ShadowingSessionState()) {
+  ShadowingController(this.ref, this.mediaId) : super(ShadowingSessionState()) {
     _init();
   }
 
   Future<void> _init() async {
     try {
       final settings = await ref.read(settingsRepositoryProvider).getSettings();
-      List<SentenceSegment> segments;
-      var startIndex = 0;
-
-      if (source == 'library') {
-        segments = await ref.read(libraryRepositoryProvider).getContentSegments(mediaId);
-        final content = await ref.read(libraryRepositoryProvider).getContentDetail(mediaId);
-        // QA 🔴-1 수정: 학습(전체 재생)에는 반드시 audioUrl(전체 오디오)을 써야 한다.
-        // previewAudioUrl은 30초 미리듣기 전용이라 30초 이후 문장 재생이 깨졌었다.
-        // audioUrl은 서버가 구독자에게만 채워 응답하므로(03_api_integration.md 5-1절),
-        // 혹시 null인 채로 여기 도달한 경우(이론상 #8 Paywall 게이트가 이미 막아야 함)에는
-        // 완전히 재생 불능이 되는 대신 미리듣기로라도 폴백한다.
-        _audioSource = content.audioUrl ?? content.previewAudioUrl;
-        _isLocalAudio = false;
-      } else {
-        segments = await ref.read(segmentationRepositoryProvider).getSegments(mediaId);
-        final media = await ref.read(mediaRepositoryProvider).getById(mediaId);
-        _audioSource = media?.localPath ?? '';
-        _isLocalAudio = true;
-        startIndex = media?.lastPlayedSentenceIndex ?? 0;
-      }
+      final segments = await ref.read(segmentationRepositoryProvider).getSegments(mediaId);
+      final media = await ref.read(mediaRepositoryProvider).getById(mediaId);
+      _audioSource = media?.localPath ?? '';
+      final startIndex = media?.lastPlayedSentenceIndex ?? 0;
 
       final micStatus = await ref.read(permissionServiceProvider).checkMicrophone();
 
@@ -173,7 +155,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       );
 
       if (segments.isNotEmpty && _audioSource.isNotEmpty) {
-        await ref.read(audioPlayerServiceProvider).setSource(_audioSource, isLocal: _isLocalAudio);
+        await ref.read(audioPlayerServiceProvider).setSource(_audioSource, isLocal: true);
       }
       _runSentenceLoop();
     } catch (_) {
@@ -292,7 +274,6 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   }
 
   Future<void> _persistProgress(int completedCount) async {
-    if (source != 'local') return;
     final repo = ref.read(mediaRepositoryProvider);
     final media = await repo.getById(mediaId);
     if (media == null) return;
@@ -466,9 +447,8 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     if (state.viewMode == ShadowingViewMode.single) _runSentenceLoop();
   }
 
-  /// 현재 문장을 "잘 안되는 문장"으로 표시/해제(#5 학습 화면 체크 버튼). 로컬 파일 학습일
-  /// 때만 서버(Fake 구현체 기준 로컬 캐시)에 영구 저장한다 — 라이브러리(PRO) 콘텐츠는
-  /// 큐레이션 원본이라 사용자가 세그먼트를 수정할 수 없으므로 화면 표시만 토글한다.
+  /// 현재 문장을 "잘 안되는 문장"으로 표시/해제(#5 학습 화면 체크 버튼). 서버(Fake 구현체
+  /// 기준 로컬 캐시)에 영구 저장한다.
   Future<void> toggleFlag() async {
     final current = state.currentSegment;
     if (current == null) return;
@@ -477,13 +457,11 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     newSegments[state.currentIndex] = updated;
     state = state.copyWith(segments: newSegments);
 
-    if (source == 'local') {
-      try {
-        await ref.read(segmentationRepositoryProvider).saveEditedSegments(mediaId, newSegments);
-      } catch (_) {
-        // 저장 실패해도 화면 표시(로컬 상태)는 유지 — 다음 진입 시 반영 안 될 수 있음을
-        // 사용자가 알 방법은 없지만, 학습 흐름을 막을 정도의 오류는 아니라고 판단.
-      }
+    try {
+      await ref.read(segmentationRepositoryProvider).saveEditedSegments(mediaId, newSegments);
+    } catch (_) {
+      // 저장 실패해도 화면 표시(로컬 상태)는 유지 — 다음 진입 시 반영 안 될 수 있음을
+      // 사용자가 알 방법은 없지만, 학습 흐름을 막을 정도의 오류는 아니라고 판단.
     }
   }
 

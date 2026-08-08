@@ -15,13 +15,13 @@ String _gapModeLabel(AppLocalizations l10n, SentenceGapMode mode) => switch (mod
 
 /// 옵션 시트(⋯ 탭 시, Bottom Sheet) — 반복 횟수/재생 속도/한글 뜻/Hands-free/녹음 토글.
 class ShadowingOptionsSheet extends ConsumerWidget {
-  final ({String mediaId, String source}) args;
-  const ShadowingOptionsSheet({super.key, required this.args});
+  final String mediaId;
+  const ShadowingOptionsSheet({super.key, required this.mediaId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(shadowingControllerProvider(args));
-    final controller = ref.read(shadowingControllerProvider(args).notifier);
+    final state = ref.watch(shadowingControllerProvider(mediaId));
+    final controller = ref.read(shadowingControllerProvider(mediaId).notifier);
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
 

@@ -24,7 +24,10 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen> {
   void initState() {
     super.initState();
     // 세션 종료 시점의 자연스러운 전환 지점 — 스킵 가능 전면 광고(01_ux_design.md).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // "광고 제거" 구매 완료 사용자에게는 전면 광고를 아예 트리거하지 않는다.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final adsRemoved = await ref.read(purchaseRepositoryProvider).watchAdsRemoved().first;
+      if (!mounted || adsRemoved) return;
       ref.read(adServiceProvider).showInterstitial(minSkipSeconds: 5);
     });
   }
@@ -71,7 +74,7 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen> {
                       child: SecondaryButton(
                         label: l10n.continueReview,
                         onPressed: () =>
-                            context.pushReplacement('/shadowing/${result.mediaId}?source=local'),
+                            context.pushReplacement('/shadowing/${result.mediaId}'),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),

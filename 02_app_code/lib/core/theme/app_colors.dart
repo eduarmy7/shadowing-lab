@@ -23,7 +23,6 @@ abstract class AppColors {
   static const onPrimaryLight = Color(0xFFFFFFFF);
   static const primaryContainerLight = Color(0xFFD1F0F5);
   static const secondaryLight = Color(0xFF2DD4C4);
-  static const proGoldLight = Color(0xFFC8942A);
   static const backgroundLight = Color(0xFFFAFAFC);
   static const surfaceLight = Color(0xFFFFFFFF);
   static const surfaceVariantLight = Color(0xFFF2F2F7);
@@ -47,7 +46,6 @@ abstract class AppColors {
   static const onPrimaryDark = Color(0xFF14141A);
   static const primaryContainerDark = Color(0xFF0F373E);
   static const secondaryDark = Color(0xFF2DD4C4);
-  static const proGoldDark = Color(0xFFE4B85C);
   static const backgroundDark = Color(0xFF0E0E12);
   static const surfaceDark = Color(0xFF1A1A20);
   static const surfaceVariantDark = Color(0xFF232329);

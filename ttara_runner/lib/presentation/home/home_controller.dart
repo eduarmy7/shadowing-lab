@@ -139,7 +139,7 @@ void navigateForMediaStatus(BuildContext context, MediaItem item) {
       context.push('/home/analyzing/${item.id}');
       break;
     case MediaStatus.ready:
-      context.push('/shadowing/${item.id}?source=local');
+      context.push('/shadowing/${item.id}');
       break;
     case MediaStatus.failed:
       context.push('/home/analyzing/${item.id}?retry=true');

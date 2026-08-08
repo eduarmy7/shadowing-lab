@@ -5,11 +5,12 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../common_widgets/ad_removal_sheet.dart';
 import '../common_widgets/skeleton_loader.dart';
 import '../home/home_controller.dart';
-import '../library/library_controller.dart';
+import '../providers/purchase_providers.dart';
 
-/// #10 마이 홈 — 스트릭 요약, 구독 상태, 설정/기록 메뉴.
+/// #10 마이 홈 — 스트릭 요약, 광고 제거 구매 상태, 설정/기록 메뉴.
 class MyHomeScreen extends ConsumerWidget {
   const MyHomeScreen({super.key});
 
@@ -18,8 +19,8 @@ class MyHomeScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final semantic = theme.extension<AppSemanticColors>()!;
     final statsAsync = ref.watch(userStatsProvider);
-    final subscription = ref.watch(subscriptionStatusProvider);
-    final isSubscribed = subscription.maybeWhen(data: (s) => s.isActive, orElse: () => false);
+    final adsRemovedAsync = ref.watch(adsRemovedProvider);
+    final adsRemoved = adsRemovedAsync.maybeWhen(data: (v) => v, orElse: () => false);
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
@@ -55,23 +56,39 @@ class MyHomeScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          if (!isSubscribed)
+          if (!adsRemoved)
             InkWell(
-              onTap: () => context.push('/my/subscription'),
+              onTap: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => const AdRemovalSheet(),
+              ),
               borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
               child: Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: semantic.proGold.withValues(alpha: 0.12),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.workspace_premium, color: semantic.proGold),
+                    Icon(Icons.block, color: theme.colorScheme.primary),
                     const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: Text(l10n.freeUserBanner)),
+                    Expanded(child: Text(l10n.adRemovalBannerTitle)),
+                    Icon(Icons.chevron_right, size: 20, color: theme.colorScheme.onSurfaceVariant),
                   ],
                 ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, size: 18, color: semantic.success),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(l10n.adRemovalPurchasedLabel, style: theme.textTheme.bodyMedium),
+                ],
               ),
             ),
           const SizedBox(height: AppSpacing.lg),

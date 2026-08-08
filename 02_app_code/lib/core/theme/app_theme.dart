@@ -108,7 +108,6 @@ abstract class AppTheme {
           surfaceVariant: surfaceVariant,
           success: isDark ? AppColors.successDark : AppColors.successLight,
           warning: AppColors.warning,
-          proGold: isDark ? AppColors.proGoldDark : AppColors.proGoldLight,
           waveform: isDark ? AppColors.waveformDark : AppColors.waveformLight,
         ),
       ],
@@ -116,7 +115,7 @@ abstract class AppTheme {
   }
 }
 
-/// TextTheme/ColorScheme에 없는 디자인 토큰(성공/경고/PRO 골드 등)을 ThemeExtension으로 노출.
+/// TextTheme/ColorScheme에 없는 디자인 토큰(성공/경고 등)을 ThemeExtension으로 노출.
 /// 사용: `Theme.of(context).extension<AppSemanticColors>()!.warning`
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color textPrimary;
@@ -124,7 +123,6 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color surfaceVariant;
   final Color success;
   final Color warning;
-  final Color proGold;
   final Color waveform;
 
   const AppSemanticColors({
@@ -133,7 +131,6 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.surfaceVariant,
     required this.success,
     required this.warning,
-    required this.proGold,
     required this.waveform,
   });
 
@@ -144,7 +141,6 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? surfaceVariant,
     Color? success,
     Color? warning,
-    Color? proGold,
     Color? waveform,
   }) {
     return AppSemanticColors(
@@ -153,7 +149,6 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       surfaceVariant: surfaceVariant ?? this.surfaceVariant,
       success: success ?? this.success,
       warning: warning ?? this.warning,
-      proGold: proGold ?? this.proGold,
       waveform: waveform ?? this.waveform,
     );
   }
@@ -167,7 +162,6 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       surfaceVariant: Color.lerp(surfaceVariant, other.surfaceVariant, t)!,
       success: Color.lerp(success, other.success, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
-      proGold: Color.lerp(proGold, other.proGold, t)!,
       waveform: Color.lerp(waveform, other.waveform, t)!,
     );
   }

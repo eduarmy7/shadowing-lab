@@ -3,18 +3,16 @@ import '../../core/ads/ad_service.dart';
 import '../../core/audio/audio_player_service.dart';
 import '../../core/permissions/permission_service.dart';
 import '../../data/local/local_kv_store.dart';
-import '../../data/repositories/fake_library_repository.dart';
+import '../../data/repositories/fake_purchase_repository.dart';
 import '../../data/repositories/fake_segmentation_repository.dart';
-import '../../data/repositories/fake_subscription_repository.dart';
 import '../../data/repositories/local_media_repository.dart';
 import '../../data/repositories/local_settings_repository.dart';
 import '../../data/repositories/local_stats_repository.dart';
-import '../../domain/repositories/library_repository.dart';
 import '../../domain/repositories/media_repository.dart';
+import '../../domain/repositories/purchase_repository.dart';
 import '../../domain/repositories/segmentation_repository.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../../domain/repositories/stats_repository.dart';
-import '../../domain/repositories/subscription_repository.dart';
 
 /// ── 의존성 주입 루트 ─────────────────────────────────────────────────
 /// 이 파일 하나가 앱의 DI 컨테이너 역할을 한다(코드젠 없는 수동 Riverpod Provider).
@@ -50,14 +48,9 @@ final segmentWaveformProvider = FutureProvider.autoDispose
       );
 });
 
-/// PRO 큐레이션 콘텐츠 — 현재 Fake 구현체.
-final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
-  return FakeLibraryRepository();
-});
-
-/// 구독/결제 — 현재 Fake 구현체.
-final subscriptionRepositoryProvider = Provider<SubscriptionRepository>((ref) {
-  return FakeSubscriptionRepository(ref.watch(localKvStoreProvider));
+/// "광고 제거" 단발성 구매 — 현재 Fake 구현체.
+final purchaseRepositoryProvider = Provider<PurchaseRepository>((ref) {
+  return FakePurchaseRepository(ref.watch(localKvStoreProvider));
 });
 
 final statsRepositoryProvider = Provider<StatsRepository>((ref) {

@@ -78,13 +78,4 @@ abstract class AppConstants {
   static const int maxRepeatCount = 10;
   static const double defaultPlaybackSpeed = 1.0;
   static const List<double> availablePlaybackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
-
-  /// 몇 문장마다 전면 광고 자연 전환 지점을 둘지 (#5 화면 설계 원칙).
-  static const int interstitialAdEverySentences = 5;
-
-  /// 라이브러리 페이지네이션 최초 프리페치 개수.
-  static const int libraryPagePrefetchCount = 10;
-
-  /// 라이브러리 오프라인 캐시 상한(최근 열람 콘텐츠 수).
-  static const int libraryOfflineCacheLimit = 5;
 }

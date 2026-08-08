@@ -20,9 +20,8 @@ import 'shadowing_options_sheet.dart';
 /// 재생/녹음 원형 트리거, 최소 보조 컨트롤. 광고·알림 절대 없음(01_ux_design.md).
 class ShadowingScreen extends ConsumerStatefulWidget {
   final String mediaId;
-  final String source; // 'local' | 'library'
 
-  const ShadowingScreen({super.key, required this.mediaId, this.source = 'local'});
+  const ShadowingScreen({super.key, required this.mediaId});
 
   @override
   ConsumerState<ShadowingScreen> createState() => _ShadowingScreenState();
@@ -45,8 +44,6 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     super.dispose();
   }
 
-  ({String mediaId, String source}) get _args => (mediaId: widget.mediaId, source: widget.source);
-
   Future<void> _openEditor(BuildContext context, ShadowingController controller, int index) async {
     await controller.pauseForEditing();
     if (!context.mounted) return;
@@ -57,13 +54,13 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(shadowingControllerProvider(_args));
-    final controller = ref.read(shadowingControllerProvider(_args).notifier);
+    final state = ref.watch(shadowingControllerProvider(widget.mediaId));
+    final controller = ref.read(shadowingControllerProvider(widget.mediaId).notifier);
     final theme = Theme.of(context);
     final semantic = theme.extension<AppSemanticColors>()!;
     final l10n = AppLocalizations.of(context)!;
 
-    ref.listen(shadowingControllerProvider(_args), (prev, next) async {
+    ref.listen(shadowingControllerProvider(widget.mediaId), (prev, next) async {
       if (next.error != null && next.error != prev?.error) {
         AppToast.show(context, next.error!, type: AppToastType.error);
       }
@@ -97,9 +94,6 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
 
     final segment = state.currentSegment!;
     final isListMode = state.viewMode == ShadowingViewMode.list;
-    // 편집(병합/분리/길이조정)은 로컬 업로드 파일 전용이다 — 라이브러리(CNN/BBC 등
-    // 구독 콘텐츠)는 서버가 내려주는 세그먼트를 그대로 쓰고 사용자가 고칠 수 없다.
-    final canEdit = widget.source == 'local';
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -131,7 +125,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                   // 이상한 문장을 만나면 학습 도중 바로 편집할 수 있어야 한다 — 한
                   // 문장씩 보기에서는 지금 보고 있는 문장을 편집 화면으로 바로 연다
                   // (한꺼번에 보기는 문장이 많아 행마다 편집 아이콘을 따로 둔다).
-                  if (!isListMode && canEdit)
+                  if (!isListMode)
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
                       tooltip: l10n.editThisSentence,
@@ -161,7 +155,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                     onPressed: () => showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
-                      builder: (_) => ShadowingOptionsSheet(args: _args),
+                      builder: (_) => ShadowingOptionsSheet(mediaId: widget.mediaId),
                     ),
                   ),
                 ],
@@ -189,7 +183,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                             completedIndices: state.fullyCompletedIndices,
                             filterFlaggedOnly: state.filterFlaggedOnly,
                             onTapSentence: controller.selectSentence,
-                            onEditSentence: canEdit ? (i) => _openEditor(context, controller, i) : null,
+                            onEditSentence: (i) => _openEditor(context, controller, i),
                           ),
                         ),
                         _ListModePlayBar(
@@ -334,7 +328,7 @@ class _SentenceListView extends StatefulWidget {
   final Set<int> completedIndices;
   final bool filterFlaggedOnly;
   final ValueChanged<int> onTapSentence;
-  final ValueChanged<int>? onEditSentence; // null이면 편집 아이콘 자체를 숨긴다(라이브러리 콘텐츠).
+  final ValueChanged<int> onEditSentence;
 
   const _SentenceListView({
     required this.segments,
@@ -477,13 +471,12 @@ class _SentenceListViewState extends State<_SentenceListView> {
                       child: Icon(Icons.check_circle,
                           size: 16, color: theme.extension<AppSemanticColors>()!.success),
                     ),
-                  if (widget.onEditSentence != null)
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      tooltip: l10n.editThisSentence,
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => widget.onEditSentence!(i),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    tooltip: l10n.editThisSentence,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => widget.onEditSentence(i),
+                  ),
                 ],
               ),
             ),
