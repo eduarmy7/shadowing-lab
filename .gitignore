@@ -46,3 +46,5 @@
 *.apk
 *.aab
 *.ipa
+/ttara_runner/dump*.xml
+/02_app_code/dump*.xml
