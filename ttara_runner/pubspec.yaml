@@ -41,7 +41,11 @@ dependencies:
   # mp3/m4a/mp4 디코딩이 불가능해 네이티브 디코더(Android MediaExtractor / iOS
   # AVAssetReader)를 감싼 최소 의존성 패키지를 채택 — ffmpeg_kit류 대비 바이너리가
   # 훨씬 가볍고(자체 의존성 없음) 재생 UI가 아닌 순수 파형 추출 API만 사용한다.
-  audio_waveforms: ^2.0.2
+  # 2026-08-08: pub.dev 버전 대신 vendor/audio_waveforms(로컬 포크)를 사용한다 —
+  # 원본 패키지의 O(N^2) 성능 버그(포인트마다 누적 배열 전체를 채널로 재전송)를
+  # 패치한 버전. 자세한 내용은 vendor/audio_waveforms/PATCH_NOTES.md 참고.
+  audio_waveforms:
+    path: vendor/audio_waveforms
 
   # ── 화면 꺼짐 방지 (쉐도잉 학습 화면 Hands-free 모드 필수 전제) ──
   wakelock_plus: ^1.2.8
