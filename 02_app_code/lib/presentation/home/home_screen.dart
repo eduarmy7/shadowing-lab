@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -150,10 +152,7 @@ class _MediaCard extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Row(
                 children: [
-                  Icon(
-                    item.sourceType == MediaSourceType.video ? Icons.videocam_outlined : Icons.mic_none,
-                    color: theme.colorScheme.primary,
-                  ),
+                  _CoverThumbnail(item: item),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
@@ -240,6 +239,35 @@ class _MediaCard extends ConsumerWidget {
       case MediaStatus.failed:
         return l10n.analysisFailedStatus;
     }
+  }
+}
+
+/// 2026-08-09: 파일에 임베딩된 표지(오디오북 커버 등)가 있으면 보여주고, 없으면(대부분의
+/// 경우) 기존 마이크/영상 아이콘으로 폴백한다. `errorBuilder`도 함께 두는 이유: 캐시
+/// 파일이 삭제됐거나 손상된 경우에도 목록 자체가 깨지면 안 되기 때문.
+class _CoverThumbnail extends StatelessWidget {
+  final MediaItem item;
+  const _CoverThumbnail({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final coverArtPath = item.coverArtPath;
+    final fallbackIcon = Icon(
+      item.sourceType == MediaSourceType.video ? Icons.videocam_outlined : Icons.mic_none,
+      color: theme.colorScheme.primary,
+    );
+    if (coverArtPath == null) return fallbackIcon;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Image.file(
+        File(coverArtPath),
+        width: 36,
+        height: 36,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => fallbackIcon,
+      ),
+    );
   }
 }
 

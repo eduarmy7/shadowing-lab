@@ -244,6 +244,15 @@ class UploadController extends StateNotifier<UploadState> {
       // 화면 전환은 이 값의 변화를 지켜보는 FileUploadScreen이 직접 한다(클래스 doc
       // 참고) — 여기서 context.pushReplacement를 호출하지 않는다.
       if (mounted) state = state.copyWith(registeredMediaId: mediaId);
+
+      // 2026-08-09: 표지(앨범 아트) 추출은 화면 전환을 막지 않는다 — 대부분의 파일에는
+      // 표지가 없고, 있어도 홈 카드를 예쁘게 꾸며주는 부가 정보일 뿐이라 실패하거나
+      // 느려도 업로드 흐름에 영향을 주면 안 된다. 끝나면 저장된 MediaItem을 갱신해
+      // 홈 목록이 반응형으로 갱신되게 한다.
+      if (sourceType == MediaSourceType.audio) {
+        unawaited(_extractCoverArtInBackground(mediaId: mediaId, localPath: localPath));
+      }
+
       return mediaId;
     } catch (e, st) {
       // 로컬 파일 접근 실패(권한/손상 파일 등) — 네트워크 개념이 없으니 "네트워크를
@@ -252,6 +261,17 @@ class UploadController extends StateNotifier<UploadState> {
       state = state.copyWith(phase: UploadPhase.error, errorMessage: '파일을 불러오지 못했어요. 다시 선택해주세요.');
       return null;
     }
+  }
+
+  Future<void> _extractCoverArtInBackground({required String mediaId, required String localPath}) async {
+    final coverPath = await ref
+        .read(coverArtExtractorProvider)
+        .extractAndCache(mediaId: mediaId, localFilePath: localPath);
+    if (coverPath == null) return;
+    final repo = ref.read(mediaRepositoryProvider);
+    final item = await repo.getById(mediaId);
+    if (item == null) return; // 그 사이 삭제됐을 수 있음
+    await repo.save(item.copyWith(coverArtPath: coverPath));
   }
 
   void reset() => state = const UploadState();

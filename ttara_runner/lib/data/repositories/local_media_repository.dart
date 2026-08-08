@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import '../../domain/entities/media_item.dart';
 import '../../domain/repositories/media_repository.dart';
 import '../local/local_kv_store.dart';
@@ -62,7 +63,18 @@ class LocalMediaRepository implements MediaRepository {
   @override
   Future<void> delete(String id) async {
     final items = await _load();
-    items.removeWhere((e) => e.id == id);
+    final idx = items.indexWhere((e) => e.id == id);
+    if (idx < 0) return;
+    final coverArtPath = items[idx].coverArtPath;
+    if (coverArtPath != null) {
+      // 캐시 파일 정리는 best-effort — 실패해도 목록 삭제 자체는 계속 진행한다.
+      unawaited(() async {
+        try {
+          await File(coverArtPath).delete();
+        } catch (_) {}
+      }());
+    }
+    items.removeAt(idx);
     await _persist();
   }
 

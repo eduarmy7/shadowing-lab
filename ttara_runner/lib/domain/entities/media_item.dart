@@ -32,6 +32,10 @@ class MediaItem extends Equatable {
   final int lastPlayedSentenceIndex; // "이어서 학습" 진입점
   final DateTime createdAt;
   final DateTime? lastStudiedAt;
+  // 2026-08-09: 파일에 임베딩된 앨범 아트(오디오북 표지 등)를 등록 시점에 한 번 추출해
+  // 앱 캐시에 저장해둔 로컬 파일 경로 — 없으면(추출 실패/원본에 이미지 없음) null이고
+  // 홈 카드는 기존 아이콘으로 폴백한다. `cover_art_extractor.dart` 참고.
+  final String? coverArtPath;
 
   const MediaItem({
     required this.id,
@@ -47,6 +51,7 @@ class MediaItem extends Equatable {
     this.lastPlayedSentenceIndex = 0,
     required this.createdAt,
     this.lastStudiedAt,
+    this.coverArtPath,
   });
 
   double get completionRatio => sentenceCount == 0 ? 0 : completedSentenceCount / sentenceCount;
@@ -66,6 +71,7 @@ class MediaItem extends Equatable {
     int? lastPlayedSentenceIndex,
     DateTime? createdAt,
     DateTime? lastStudiedAt,
+    String? coverArtPath,
   }) {
     return MediaItem(
       id: id ?? this.id,
@@ -81,6 +87,7 @@ class MediaItem extends Equatable {
       lastPlayedSentenceIndex: lastPlayedSentenceIndex ?? this.lastPlayedSentenceIndex,
       createdAt: createdAt ?? this.createdAt,
       lastStudiedAt: lastStudiedAt ?? this.lastStudiedAt,
+      coverArtPath: coverArtPath ?? this.coverArtPath,
     );
   }
 
@@ -98,6 +105,7 @@ class MediaItem extends Equatable {
         lastPlayedSentenceIndex: json['lastPlayedSentenceIndex'] as int? ?? 0,
         createdAt: DateTime.parse(json['createdAt'] as String),
         lastStudiedAt: json['lastStudiedAt'] == null ? null : DateTime.parse(json['lastStudiedAt'] as String),
+        coverArtPath: json['coverArtPath'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -114,6 +122,7 @@ class MediaItem extends Equatable {
         'lastPlayedSentenceIndex': lastPlayedSentenceIndex,
         'createdAt': createdAt.toIso8601String(),
         'lastStudiedAt': lastStudiedAt?.toIso8601String(),
+        'coverArtPath': coverArtPath,
       };
 
   @override
@@ -131,5 +140,6 @@ class MediaItem extends Equatable {
         lastPlayedSentenceIndex,
         createdAt,
         lastStudiedAt,
+        coverArtPath,
       ];
 }

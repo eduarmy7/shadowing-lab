@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/ads/ad_service.dart';
 import '../../core/audio/audio_player_service.dart';
+import '../../core/audio/cover_art_extractor.dart';
 import '../../core/permissions/permission_service.dart';
 import '../../data/local/local_kv_store.dart';
 import '../../data/repositories/fake_purchase_repository.dart';
@@ -23,6 +24,8 @@ import '../../domain/repositories/stats_repository.dart';
 /// presentation 레이어(컨트롤러/화면)는 단 한 줄도 바꿀 필요가 없다.
 
 final localKvStoreProvider = Provider<LocalKvStore>((ref) => LocalKvStore());
+
+final coverArtExtractorProvider = Provider<CoverArtExtractor>((ref) => CoverArtExtractor());
 
 final mediaRepositoryProvider = Provider<MediaRepository>((ref) {
   return LocalMediaRepository(ref.watch(localKvStoreProvider));
