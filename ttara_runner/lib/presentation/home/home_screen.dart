@@ -9,6 +9,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../common_widgets/empty_state.dart';
 import '../common_widgets/primary_button.dart';
 import '../common_widgets/skeleton_loader.dart';
+import 'analyzing_controller.dart';
 import 'home_controller.dart';
 
 /// #1 홈 — 내 콘텐츠(무료). Empty / Populated 두 레이아웃을 한 화면에서 상태로 분기.
@@ -109,6 +110,18 @@ class _MediaCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    // 2026-08-08: 홈 카드의 "분석 중 · N%"는 마지막으로 저장된 스냅샷일 뿐 실시간
+    // 상태가 아니다 — 실제 분석은 AnalyzingController(비-autoDispose)가 살아있는
+    // 동안에만 진행되는데, 앱이 백그라운드에 있는 동안 OS(특히 삼성 기기의 공격적인
+    // 백그라운드 프로세스 정지 정책)가 프로세스를 통째로 죽이면 그 컨트롤러도 같이
+    // 사라진다 — 남은 건 죽기 직전 값이 영원히 박제된 카드뿐이고, 사용자는 "그냥
+    // 느린 것"과 "완전히 멈춘 것"을 구분할 방법이 없었다(실사용 중 발견, 1시간+
+    // 0%로 방치된 사례). 이 프로세스에서 해당 mediaId의 컨트롤러가 실제로
+    // 존재하는지(=지금 이 순간 진짜로 진행 중인지) 확인해 구분한다 — 존재하지 않으면
+    // "멈춤" 상태로 표시하고, 탭하면 [navigateForMediaStatus]가 분석 화면으로
+    // 들여보내 새 컨트롤러 인스턴스를 만들면서 자동으로 재시작된다(직접 확인됨).
+    final isOrphanedAnalyzing =
+        item.status == MediaStatus.analyzing && !ref.exists(analyzingControllerProvider(item.id));
     return Dismissible(
       key: ValueKey(item.id),
       direction: DismissDirection.endToStart,
@@ -148,7 +161,12 @@ class _MediaCard extends ConsumerWidget {
                       children: [
                         Text(item.fileName, style: theme.textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),
-                        Text(_subtitle(l10n, item), style: theme.textTheme.bodySmall),
+                        Text(
+                          isOrphanedAnalyzing ? l10n.analyzingOrphanedStatus : _subtitle(l10n, item),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isOrphanedAnalyzing ? theme.colorScheme.error : null,
+                          ),
+                        ),
                         if (item.status == MediaStatus.ready && item.sentenceCount > 0) ...[
                           const SizedBox(height: 6),
                           ClipRRect(
@@ -163,14 +181,17 @@ class _MediaCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  if (item.status == MediaStatus.failed)
+                  if (item.status == MediaStatus.failed || isOrphanedAnalyzing)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.errorContainer,
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text(l10n.reanalyzeNeeded, style: theme.textTheme.bodySmall),
+                      child: Text(
+                        isOrphanedAnalyzing ? l10n.resumeAnalysisNeeded : l10n.reanalyzeNeeded,
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ),
                   // 좌우 스와이프(Dismissible)만으로는 삭제 기능이 눈에 안 띄어서, 항상
                   // 보이는 삭제 버튼도 함께 제공한다 — 실수 방지를 위해 확인 다이얼로그를 거친다.

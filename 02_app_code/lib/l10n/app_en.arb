@@ -24,6 +24,8 @@
   "@uploadingStatus": { "placeholders": { "percent": { "type": "String" } } },
   "analyzingStatus": "Analyzing · {percent}",
   "@analyzingStatus": { "placeholders": { "percent": { "type": "String" } } },
+  "analyzingOrphanedStatus": "Analysis stopped · Tap to resume",
+  "resumeAnalysisNeeded": "Resume analysis",
   "sentencesCompleted": "{count} sentences · Done",
   "@sentencesCompleted": { "placeholders": { "count": { "type": "int" } } },
   "sentencesProgress": "{count} sentences · {percent} done",
