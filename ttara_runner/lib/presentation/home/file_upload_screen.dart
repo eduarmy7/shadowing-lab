@@ -40,10 +40,35 @@ class FileUploadScreen extends ConsumerWidget {
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.screenMargin),
         child: switch (state.phase) {
+          UploadPhase.picking => const _PickingView(),
           UploadPhase.uploading => _UploadingView(state: state),
           UploadPhase.awaitingSubtitleDecision => _SubtitleDecisionView(state: state),
           UploadPhase.idle || UploadPhase.error => _PickerView(state: state, ref: ref),
         },
+      ),
+    );
+  }
+}
+
+/// 시스템 파일 피커가 떠 있는 동안 ~ 결과를 검증해 다음 화면으로 넘기기 직전까지
+/// 보여주는 화면. [UploadController.pickMedia] 코드 주석 참고 — 이 화면이 없으면 그
+/// 사이 원래 화면(_PickerView, "어디서 가져올까요?")이 잠깐 다시 보여 사용자가 파일이
+/// 선택 안 된 줄 오해했다.
+class _PickingView extends StatelessWidget {
+  const _PickingView();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(strokeWidth: 5),
+          const SizedBox(height: AppSpacing.lg),
+          Text(l10n.pickingFileTitle, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+        ],
       ),
     );
   }

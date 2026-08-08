@@ -91,6 +91,7 @@
   "continueWithoutSubtitle": "자막 없이 계속하기",
   "cancelAndReselect": "취소하고 다시 선택",
   "whichFileType": "어떤 파일인가요?",
+  "pickingFileTitle": "선택한 파일을 확인하고 있어요",
   "audioFileOption": "음성 파일 (mp3·m4a·wav)",
   "videoFileOption": "영상 파일 (mp4·mov)",
   "preparingFile": "{fileName} 준비 중",

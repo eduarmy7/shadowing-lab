@@ -91,6 +91,7 @@
   "continueWithoutSubtitle": "Continue Without Subtitles",
   "cancelAndReselect": "Cancel and Choose Again",
   "whichFileType": "What kind of file is it?",
+  "pickingFileTitle": "Checking your selected file",
   "audioFileOption": "Audio File (mp3·m4a·wav)",
   "videoFileOption": "Video File (mp4·mov)",
   "preparingFile": "Preparing {fileName}",

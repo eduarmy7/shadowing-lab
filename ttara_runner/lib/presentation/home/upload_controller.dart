@@ -7,11 +7,15 @@ import '../../core/constants/app_constants.dart';
 import '../../domain/entities/media_item.dart';
 import '../providers/repository_providers.dart';
 
+/// [picking]: 시스템 파일 피커가 떠 있는 동안(그리고 피커가 닫힌 직후 결과를 검증하는
+/// 그 찰나) 보여주는 단계 — 2026-08-08 버그 수정 참고([UploadController.pickMedia] 코드
+/// 주석).
+///
 /// [awaitingSubtitleDecision]: 영상 파일을 골랐을 때만 거치는 중간 단계 — 자막(SRT/VTT)을
 /// 추가할지 물어본다(00_input.md "영상+자막" 문장분리 경로). 음성 파일은 이 단계 없이
 /// 바로 [uploading]으로 넘어간다(음성만 있으면 처음부터 무음 감지 경로가 확정이라
 /// 물어볼 것이 없다).
-enum UploadPhase { idle, awaitingSubtitleDecision, uploading, error }
+enum UploadPhase { idle, picking, awaitingSubtitleDecision, uploading, error }
 
 class UploadState {
   final UploadPhase phase;
@@ -96,8 +100,17 @@ class UploadController extends StateNotifier<UploadState> {
   /// [UploadPhase.awaitingSubtitleDecision]으로 전환해 화면이 자막 첨부 여부를
   /// 물어보게 하고(반환값 null), 음성이면 그 자리에서 바로 등록까지 마치고 mediaId를
   /// 반환한다.
+  ///
+  /// **2026-08-08 버그 수정**: 예전엔 이 함수 맨 앞에서 `state`를 [UploadPhase.idle]로
+  /// 되돌려놓고서야 시스템 파일 피커를 열었다 — 그 결과, 시스템 피커에서 파일을 고르고
+  /// 우리 화면으로 돌아오는 그 순간 화면엔 여전히 "idle"(=파일 소스를 고르는 최초 화면,
+  /// `_PickerView`)이 렌더링돼 있었다. 실제로 [uploading]으로 바뀌기까지의 그 짧은 프레임
+  /// 동안 사용자 눈에는 "어디서 가져올까요?" 화면이 다시 뜬 것처럼 보여, "선택이 안 된
+  /// 건가?" 하고 오해하기 쉬웠다(사용자 보고로 발견). 대신 피커를 열기 전부터
+  /// [UploadPhase.picking](로딩 인디케이터)으로 전환해, 피커가 닫힌 뒤에도 다음 단계로
+  /// 넘어가기 전까지 "처리 중"이라는 화면이 끊김 없이 이어지게 한다.
   Future<String?> pickMedia({required MediaSourceType sourceHint}) async {
-    state = const UploadState(phase: UploadPhase.idle);
+    state = const UploadState(phase: UploadPhase.picking);
     final allowedExtensions =
         sourceHint == MediaSourceType.video ? AppConstants.supportedVideoExtensions : AppConstants.supportedAudioExtensions;
     debugPrint('[pickMedia] calling FilePicker.pickFiles (sourceHint=$sourceHint)...');
@@ -105,7 +118,12 @@ class UploadController extends StateNotifier<UploadState> {
     debugPrint('[pickMedia] FilePicker.pickFiles returned: '
         'path=${result?.files.single.path} name=${result?.files.single.name} '
         'size=${result?.files.single.size}');
-    if (result == null) return null; // 사용자가 취소했거나(반환 null) 타임아웃(에러 상태로 전환됨)
+    if (result == null) {
+      // 사용자가 시스템 피커를 그냥 닫은 경우(취소) — 타임아웃/에러였다면
+      // _pickFilesOrTimeout이 이미 error 상태로 바꿔놨을 것이므로 그 경우엔 덮어쓰지 않는다.
+      if (state.phase == UploadPhase.picking) state = const UploadState();
+      return null;
+    }
     if (result.files.single.path == null) return null;
 
     final path = result.files.single.path!;

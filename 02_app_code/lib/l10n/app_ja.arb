@@ -91,6 +91,7 @@
   "continueWithoutSubtitle": "字幕なしで続ける",
   "cancelAndReselect": "キャンセルして選び直す",
   "whichFileType": "どのファイルですか？",
+  "pickingFileTitle": "選択したファイルを確認しています",
   "audioFileOption": "音声ファイル（mp3・m4a・wav）",
   "videoFileOption": "動画ファイル（mp4・mov）",
   "preparingFile": "{fileName} を準備中",
