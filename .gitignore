@@ -1,0 +1,48 @@
+# Debug/scratch artifacts from manual testing sessions (screenshots, uiautomator dumps, build logs)
+/build_log*.txt
+/dump*.xml
+/*.png
+
+# ---- Flutter/Dart (applies to 02_app_code/ and ttara_runner/) ----
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/build/
+**/*.g.dart.bak
+
+# Android
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+**/*.jks
+**/*.keystore
+
+# iOS/macOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/ServiceDefinitions.json
+**/macos/Pods/
+**/**/*.xcuserstate
+**/**/xcuserdata/
+
+# IDE
+**/.idea/
+**/*.iml
+**/.vscode/
+
+# Generated localization output (regenerate via `flutter gen-l10n`)
+**/lib/l10n/gen/
+
+# Packages/APKs/build outputs
+*.apk
+*.aab
+*.ipa

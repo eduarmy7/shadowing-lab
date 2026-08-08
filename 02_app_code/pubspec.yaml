@@ -1,0 +1,97 @@
+name: ttara
+description: "쉐도잉랩(ShadowingLab) — AI가 잘라주는 진짜 쉐도잉. 영어 쉐도잉 학습 앱"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # ── 상태관리 / 라우팅 ─────────────────────────────
+  # Riverpod: 학습 루프(#5)처럼 여러 화면·위젯이 동일 상태(재생/반복/진행률)를
+  # 구독해야 하는 요구가 많아 Provider/Bloc 대비 보일러플레이트가 적고
+  # 테스트용 override가 쉬운 flutter_riverpod을 채택 (코드젠 없는 수동 Provider 방식 —
+  # build_runner 의존을 없애 스캐폴드 단계에서 즉시 컴파일 가능하도록 함).
+  flutter_riverpod: ^2.5.1
+
+  # go_router: StatefulShellRoute로 3탭(홈/라이브러리/마이) 각각 독립 스택을 유지하면서
+  # 학습 화면 같은 풀스크린 라우트는 탭 밖에서 별도로 push.
+  go_router: ^14.2.7
+
+  # ── 오디오 재생 ───────────────────────────────────
+  # 영상 파일도 오디오만 추출 재생(파형만 노출) — 배터리/성능 이점 (UX 문서 권장사항)
+  just_audio: ^0.9.40
+  just_audio_background: ^0.0.1-beta.13
+  audio_session: ^0.1.21
+
+  # ── 파일 입출력 / 권한 ────────────────────────────
+  # 8.x는 자체 android/build.gradle이 compileSdk 34로 고정돼 있어 최근
+  # flutter_plugin_android_lifecycle(compileSdk 36 요구)과 충돌 — 11.x로 상향.
+  file_picker: ^11.0.3
+  permission_handler: ^11.3.1
+  path_provider: ^2.1.4
+
+  # ── 무음 감지(문장 분리) ──────────────────────────
+  # 2026-08-05: 음성만 업로드된 파일의 실제 amplitude 분석 구현. 순수 Dart로는
+  # mp3/m4a/mp4 디코딩이 불가능해 네이티브 디코더(Android MediaExtractor / iOS
+  # AVAssetReader)를 감싼 최소 의존성 패키지를 채택 — ffmpeg_kit류 대비 바이너리가
+  # 훨씬 가볍고(자체 의존성 없음) 재생 UI가 아닌 순수 파형 추출 API만 사용한다.
+  audio_waveforms: ^2.0.2
+
+  # ── 화면 꺼짐 방지 (쉐도잉 학습 화면 Hands-free 모드 필수 전제) ──
+  wakelock_plus: ^1.2.8
+
+  # ── 외부 링크 ────────────────────────────────────
+  # 구독 해지(#9)는 앱이 직접 처리할 수 없어 스토어 구독관리 화면으로 딥링크한다
+  # (03_api_integration.md 6-3절, QA 🔴-4).
+  url_launcher: ^6.3.1
+
+  # ── 로컬 저장 ────────────────────────────────────
+  # 스캐폴드 단계 저장소: SharedPreferences 기반 JSON 저장(코드젠 불필요, 즉시 동작).
+  # 프로덕션 전환 시 Drift/Isar로 교체 권장 — Repository 인터페이스로 격리되어 있어
+  # 구현체 교체만으로 마이그레이션 가능 (02_app_architecture.md 참고).
+  shared_preferences: ^2.3.2
+
+  # ── 유틸 ─────────────────────────────────────────
+  equatable: ^2.0.5
+  uuid: ^4.5.1
+  intl: ^0.20.2
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+
+  # QA 🔴-3: App Review 심사자를 포함해 자기 소유 파일이 없는 사용자도 핵심 기능
+  # (AI 자동분리→쉐도잉)을 바로 체험할 수 있도록 앱 번들에 포함하는 샘플 오디오.
+  # 현재 sample_interview_en.wav는 45초 무음 PCM 플레이스홀더(빌드 가능 여부 검증용) —
+  # 실제 배포 전 반드시 라이선스가 명확한(CC0 등) 짧은 영어 발화 샘플로 교체할 것.
+  assets:
+    - assets/sample/
+
+  # Pretendard Variable 폰트는 라이선스 파일 배치가 필요해 이번 스캐폴드에는 포함하지 않음.
+  # assets/fonts/ 에 Pretendard-*.otf 배치 후 아래 주석을 해제하면 즉시 적용됨.
+  # 미적용 상태에서는 core/theme/app_typography.dart 의 fontFamily 지정이 시스템 폰트
+  # (iOS: SF Pro / Android: Roboto)로 자동 폴백되므로 빌드에는 영향 없음.
+  #
+  # fonts:
+  #   - family: Pretendard
+  #     fonts:
+  #       - asset: assets/fonts/Pretendard-Regular.otf
+  #         weight: 400
+  #       - asset: assets/fonts/Pretendard-Medium.otf
+  #         weight: 500
+  #       - asset: assets/fonts/Pretendard-SemiBold.otf
+  #         weight: 600
+  #       - asset: assets/fonts/Pretendard-Bold.otf
+  #         weight: 700
