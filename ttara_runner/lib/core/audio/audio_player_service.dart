@@ -18,6 +18,7 @@ class AudioPlayerService {
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Duration get duration => _player.duration ?? Duration.zero;
+  Duration get position => _player.position;
   bool get isPlaying => _player.playing;
 
   /// asset:///-스킴 접두사 — 앱 번들(Flutter AssetBundle)에 포함된 오디오를 가리킨다.
@@ -80,17 +81,24 @@ class AudioPlayerService {
   /// 단위로 안 끊기고 통으로 재생됨"으로 재현). 경계 리스너를 먼저 걸어둔 뒹, `play()`는
   /// 기다리지 않고(`unawaited`) 시작만 시킨다 — 그래야 리스너가 실제로 [endMs]에서
   /// `pause()`를 호출할 수 있다.
+  ///
+  /// [seek]가 false면 [startMs]로 되감지 않고 현재 재생 위치 그대로 이어서 재생한다 —
+  /// 정지 버튼으로 멈춘 지점에서 다시 재생 버튼을 눌렀을 때(`ShadowingController.
+  /// resumeOrRestart`) 문장 처음으로 되돌아가지 않도록 하기 위해 2026-08-09에 추가했다.
   Future<void> playSegmentOnce({
     required int startMs,
     required int endMs,
     double speed = 1.0,
+    bool seek = true,
   }) async {
     await _boundarySub?.cancel();
     if (_activeCompleter != null && !_activeCompleter!.isCompleted) {
       _activeCompleter!.complete(); // 이전 호출이 아직 대기 중이었다면 여기서 풀어준다.
     }
     await _player.setSpeed(speed);
-    await _player.seek(Duration(milliseconds: startMs));
+    if (seek) {
+      await _player.seek(Duration(milliseconds: startMs));
+    }
 
     final completer = Completer<void>();
     _activeCompleter = completer;
@@ -123,7 +131,8 @@ class AudioPlayerService {
     // 7~16초씩 화면이 멈춘 것처럼 보였다(사용자 체감상 "몇 초 멈췄다 풀림"). 로컬
     // 파일 재생은 네트워크 지연이 없어 정상 재생이면 훨씬 여유 있게 끝나므로, 배율을
     // 줄여 고장 감지를 더 빠르게 해서 멈춤 체감 시간을 줄인다.
-    final expectedMs = (endMs - startMs).clamp(200, 1 << 31);
+    final effectiveStartMs = seek ? startMs : _player.position.inMilliseconds;
+    final expectedMs = (endMs - effectiveStartMs).clamp(200, 1 << 31);
     try {
       await completer.future.timeout(Duration(milliseconds: expectedMs * 2 + 2500));
     } on TimeoutException {

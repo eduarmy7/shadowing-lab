@@ -27,6 +27,9 @@ class ShadowingSessionState {
   final String? error;
   final Set<int> fullyCompletedIndices;
   final bool awaitingManualAdvance; // handsFree OFF: 완료 후 스와이프 대기
+  // 2026-08-09: 정지 버튼으로 멈춘 뒤 아직 재생을 재개하지 않은 상태 — true면 원형 CTA를
+  // 다시 눌렀을 때 문장 처음이 아니라 멈춘 지점부터 이어서 재생한다([resumeOrRestart]).
+  final bool awaitingResume;
   final DateTime sessionStartedAt;
   final ShadowingViewMode viewMode;
   final bool filterFlaggedOnly; // 한꺼번에 보기에서 표시(🚩)한 문장만 걸러 보기
@@ -50,6 +53,7 @@ class ShadowingSessionState {
     this.error,
     this.fullyCompletedIndices = const {},
     this.awaitingManualAdvance = false,
+    this.awaitingResume = false,
     DateTime? sessionStartedAt,
     this.viewMode = ShadowingViewMode.single,
     this.filterFlaggedOnly = false,
@@ -76,6 +80,7 @@ class ShadowingSessionState {
     bool clearError = false,
     Set<int>? fullyCompletedIndices,
     bool? awaitingManualAdvance,
+    bool? awaitingResume,
     DateTime? sessionStartedAt,
     ShadowingViewMode? viewMode,
     bool? filterFlaggedOnly,
@@ -96,6 +101,7 @@ class ShadowingSessionState {
       error: clearError ? null : (error ?? this.error),
       fullyCompletedIndices: fullyCompletedIndices ?? this.fullyCompletedIndices,
       awaitingManualAdvance: awaitingManualAdvance ?? this.awaitingManualAdvance,
+      awaitingResume: awaitingResume ?? this.awaitingResume,
       sessionStartedAt: sessionStartedAt ?? this.sessionStartedAt,
       viewMode: viewMode ?? this.viewMode,
       filterFlaggedOnly: filterFlaggedOnly ?? this.filterFlaggedOnly,
@@ -134,6 +140,12 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       final media = await ref.read(mediaRepositoryProvider).getById(mediaId);
       _audioSource = media?.localPath ?? '';
       final startIndex = media?.lastPlayedSentenceIndex ?? 0;
+      // 2026-08-09: 최근학습(홈)에서 이미 진행 중이던 책을 다시 열면(=이어서 학습,
+      // lastPlayedSentenceIndex > 0) 곧장 한 문장씩 자동재생으로 들어가는 대신 한꺼번에
+      // 보기로 먼저 보여준다 — 어디까지 했는지 맥락을 보고 원하는 문장을 골라 이어갈 수
+      // 있게(사용자 피드백: 한 문장 화면으로 바로 떨어지면 맥락 없이 갑자기 시작돼
+      // 당황스럽다). 처음 시작하는 콘텐츠(index 0)는 기존처럼 바로 몰입 모드로 들어간다.
+      final initialViewMode = startIndex > 0 ? ShadowingViewMode.list : ShadowingViewMode.single;
 
       state = state.copyWith(
         segments: segments,
@@ -144,27 +156,36 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         handsFree: settings.handsFreeMode,
         showTranslation: settings.autoShowTranslation,
         sentenceGapMode: settings.sentenceGapMode,
+        viewMode: initialViewMode,
       );
 
       if (segments.isNotEmpty && _audioSource.isNotEmpty) {
         await ref.read(audioPlayerServiceProvider).setSource(_audioSource, isLocal: true);
       }
-      _runSentenceLoop();
+      if (initialViewMode == ShadowingViewMode.single) {
+        _runSentenceLoop();
+      }
     } catch (_) {
       state = state.copyWith(isLoading: false, error: '학습 콘텐츠를 불러오지 못했어요');
     }
   }
 
-  Future<void> _runSentenceLoop() async {
+  /// [resumeFromPause]가 true면 이 루프의 첫 번째 "듣기" 단계만 문장 처음으로 되감지
+  /// 않고 정지된 위치에서 이어서 재생한다([resumeOrRestart] 참고) — 두 번째 문장부터는
+  /// (혹은 첫 문장이 끝난 뒤 반복이 더 필요하면) 평소처럼 처음부터 재생한다.
+  Future<void> _runSentenceLoop({bool resumeFromPause = false}) async {
     final myGen = ++_gen;
+    var isFirstIteration = true;
     while (true) {
       if (myGen != _gen || !mounted) return;
       final segment = state.currentSegment;
       if (segment == null) return;
 
       // ── 1) 원어민 음성 재생 ──────────────────────────────────
-      state = state.copyWith(phase: ShadowingPhase.listening, clearError: true);
-      final played = await _playWithRetry(segment.startMs, segment.endMs);
+      state = state.copyWith(phase: ShadowingPhase.listening, clearError: true, awaitingResume: false);
+      final shouldResume = isFirstIteration && resumeFromPause;
+      isFirstIteration = false;
+      final played = await _playWithRetry(segment.startMs, segment.endMs, seek: !shouldResume);
       if (myGen != _gen || !mounted) return;
       if (!played) return; // 재시도까지 실패 — 사용자가 원형 버튼으로 수동 재시작
 
@@ -214,10 +235,14 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     }
   }
 
-  Future<bool> _playWithRetry(int startMs, int endMs, {bool isRetry = false}) async {
+  Future<bool> _playWithRetry(int startMs, int endMs, {bool isRetry = false, bool seek = true}) async {
     StreamSubscription<Duration>? positionSub;
     try {
-      state = state.copyWith(isBuffering: true, playbackProgressRatio: 0);
+      // 2026-08-09: seek:false(정지 지점에서 이어재생)일 때는 진행률을 0으로 리셋하지
+      // 않는다 — 안 그러면 이미 60% 지점에서 멈췄던 파형이 재생 버튼을 누르는 순간
+      // 잠깐 0%로 튀었다가 첫 positionStream 이벤트에서야 다시 튀어 오르는 깜빡임이
+      // 생긴다.
+      state = state.copyWith(isBuffering: true, playbackProgressRatio: seek ? 0 : state.playbackProgressRatio);
       // 2026-08-06: 파형 위 재생 위치 표시용 — 문장 구간 안에서의 실제 진행률(0.0~1.0)을
       // positionStream으로 실시간 반영한다(예전엔 재생 중이면 무조건 0.5 고정값).
       final segmentDurationMs = (endMs - startMs).clamp(1, 1 << 31);
@@ -235,6 +260,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
             startMs: startMs,
             endMs: endMs,
             speed: state.playbackSpeed,
+            seek: seek,
           );
       if (!mounted) return true;
       // 2026-08-07: 재시도(hard reset 후)가 성공했는데도 첫 시도 실패 때 띄운 에러
@@ -257,6 +283,8 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       }
       if (!isRetry) {
         await Future.delayed(const Duration(milliseconds: 500));
+        // 재시도는 항상 처음(seek:true)부터 — 실패 처리 과정에서 플레이어가 하드
+        // 리셋됐을 수 있어(_hardReset) 이어재생 위치를 더는 신뢰할 수 없다.
         return _playWithRetry(startMs, endMs, isRetry: true);
       }
       return false;
@@ -289,6 +317,19 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     if (!mounted) return;
     state = state.copyWith(phase: ShadowingPhase.idle);
     _runSentenceLoop();
+  }
+
+  /// 한 문장씩 보기의 원형 CTA(큰 재생 버튼) 탭 — 2026-08-09에 [restartCurrentStep]에서
+  /// 분리했다. [stopSingleMode]로 멈춘 직후([awaitingResume] true)라면 문장 처음으로
+  /// 되감지 않고 멈춘 지점부터 이어서 재생하고, 그 외(맨 처음 진입/문장 완료 후 등)에는
+  /// 기존과 동일하게 처음부터 재생한다. 하단의 별도 "다시 듣기"(`Icons.replay`) 버튼은
+  /// 항상 [restartCurrentStep]을 써서 명시적으로 처음부터 다시 듣는 용도로 남겨둔다.
+  Future<void> resumeOrRestart() async {
+    if (state.awaitingResume) {
+      _runSentenceLoop(resumeFromPause: true);
+    } else {
+      await restartCurrentStep();
+    }
   }
 
   /// 스와이프 업 — 다음 문장으로 즉시 스킵(Hands-free OFF일 때 수동 진행 포함).
@@ -343,7 +384,13 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       _gen++;
       await ref.read(audioPlayerServiceProvider).stopSegment();
       if (!mounted) return;
-      state = state.copyWith(viewMode: ShadowingViewMode.list, phase: ShadowingPhase.idle);
+      // 2026-08-09 버그 수정: filterFlaggedOnly를 여기서 초기화하지 않으면, 예전에 한번
+      // "깃발만 보기"를 켠 적이 있을 경우 그 상태가 세션 내내 남아 있어서, 이후 한
+      // 문장씩 보기에서 한꺼번에 보기로 전환할 때마다 매번 깃발 표시한 문장만 걸러진
+      // 목록이 나왔다(사용자 보고: 전체 목록을 기대했는데 필터링된 목록만 보임). 한꺼번에
+      // 보기에 새로 들어갈 때는 항상 전체 목록으로 시작하고, 필터는 그 안에서 원할 때
+      // 다시 켜도록 한다.
+      state = state.copyWith(viewMode: ShadowingViewMode.list, phase: ShadowingPhase.idle, filterFlaggedOnly: false);
     } else {
       state = state.copyWith(viewMode: ShadowingViewMode.single);
       _runSentenceLoop();
@@ -477,12 +524,22 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   }
 
   /// 한 문장씩 보기의 정지 버튼 — 자동 듣기↔말하기 루프를 즉시 멈춘다(반복 횟수는
-  /// 유지). [restartCurrentStep]으로 다시 시작할 수 있다.
+  /// 유지). [resumeOrRestart](원형 CTA)로 멈춘 지점부터 이어서 재생하거나,
+  /// [restartCurrentStep](다시 듣기 버튼)으로 처음부터 다시 시작할 수 있다.
+  ///
+  /// 2026-08-09 버그 수정: 예전엔 정지 후 다시 재생하면 무조건 문장 처음으로 돌아갔다
+  /// — [AudioPlayerService.stopSegment]는 일시정지만 할 뿐 되감지 않는데, 정작 재생
+  /// 재개 경로([restartCurrentStep] → `_runSentenceLoop` → `playSegmentOnce`)가 항상
+  /// `seek(startMs)`를 호출했기 때문이다. "듣기(listening)" 단계에서 멈췄을 때만
+  /// [awaitingResume]을 세운다 — "말하기(speaking)" 단계는 실제 오디오 재생이 없는
+  /// 타이머일 뿐이라 이어서 재생할 위치 자체가 없다(그 경우엔 다음 재생이 정상적으로
+  /// 듣기 단계를 처음부터 다시 시작한다).
   Future<void> stopSingleMode() async {
+    final wasListening = state.phase == ShadowingPhase.listening;
     _gen++;
     await ref.read(audioPlayerServiceProvider).stopSegment();
     if (!mounted) return;
-    state = state.copyWith(phase: ShadowingPhase.idle, isBuffering: false);
+    state = state.copyWith(phase: ShadowingPhase.idle, isBuffering: false, awaitingResume: wasListening);
   }
 
   Future<LearningSessionResult> buildSessionResult() async {

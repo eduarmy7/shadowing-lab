@@ -261,7 +261,10 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                                     state.phase == ShadowingPhase.speaking ? semantic.success : theme.colorScheme.primary,
                                 size: AppSpacing.primaryCtaSize,
                                 iconSize: 32,
-                                onTap: controller.restartCurrentStep,
+                                // 2026-08-09: 정지 직후엔 처음부터가 아니라 멈춘 지점부터
+                                // 이어서 재생한다 — 항상 처음부터 다시 듣고 싶을 땐 아래
+                                // "다시 듣기"(Icons.replay) 버튼을 쓴다.
+                                onTap: controller.resumeOrRestart,
                                 semanticLabel:
                                     state.phase == ShadowingPhase.speaking ? l10n.speakingInProgress : l10n.playListenLabel,
                               ),
