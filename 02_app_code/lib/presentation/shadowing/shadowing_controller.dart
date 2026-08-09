@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
@@ -128,6 +129,8 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
 
   int _gen = 0;
   String _audioSource = '';
+  StreamSubscription<Duration>? _overrunWatchdogSub;
+  bool _resyncingFromOverrun = false;
 
   ShadowingController(this.ref, this.mediaId) : super(ShadowingSessionState()) {
     _init();
@@ -162,12 +165,50 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       if (segments.isNotEmpty && _audioSource.isNotEmpty) {
         await ref.read(audioPlayerServiceProvider).setSource(_audioSource, isLocal: true);
       }
+      _overrunWatchdogSub =
+          ref.read(audioPlayerServiceProvider).positionStream.listen(_watchForExternalOverrun);
       if (initialViewMode == ShadowingViewMode.single) {
         _runSentenceLoop();
       }
     } catch (_) {
       state = state.copyWith(isLoading: false, error: '학습 콘텐츠를 불러오지 못했어요');
     }
+  }
+
+  /// 2026-08-09 추가 — 잠금화면/알림 미니 플레이어 대응.
+  ///
+  /// `just_audio_background`의 알림 재생 버튼은 우리 컨트롤러를 거치지 않고 재생기를
+  /// 직접 조작한다. 정상적인 경우엔 [_playWithRetry]가 매 재생마다 [endMs]에서 멈추는
+  /// 리스너를 걸어두지만, 그 리스너는 "듣기" 단계 동안만 살아있다 — "따라 말하기" 대기
+  /// 시간처럼 의도적으로 오디오가 멈춰 있는 순간, 혹은 문장이 끝나 다음 반복을 기다리는
+  /// 순간에 알림에서 재생 버튼을 누르면 아무 경계 감시 없이 파일 끝까지 죽 재생돼버린다
+  /// (사용자 보고: "화면 끄고 미니 플레이어로 들으면 반복 없이 쭉 재생됨"). 이 컨트롤러가
+  /// 살아있는 내내 위치를 감시하다가, 현재 문장 경계를 여유 있게(1.2초) 벗어나면 —
+  /// 우리 쪽 재생이라면 절대 벗어날 수 없으므로 외부 개입으로 간주하고 — 재생을 멈추고
+  /// 현재 문장을 반복 횟수/속도 설정 그대로 다시 시작한다.
+  Future<void> _watchForExternalOverrun(Duration pos) async {
+    if (!mounted || _resyncingFromOverrun) return;
+    if (state.viewMode != ShadowingViewMode.single) return;
+    final segment = state.currentSegment;
+    if (segment == null) return;
+    const overrunMarginMs = 1200;
+    if (pos.inMilliseconds > segment.endMs + overrunMarginMs) {
+      debugPrint('[ShadowingController] external playback overran the current sentence boundary '
+          '(pos=${pos.inMilliseconds}ms endMs=${segment.endMs}ms) — resyncing to the study loop.');
+      _resyncingFromOverrun = true;
+      _gen++;
+      await ref.read(audioPlayerServiceProvider).stopSegment();
+      _resyncingFromOverrun = false;
+      if (!mounted) return;
+      state = state.copyWith(phase: ShadowingPhase.idle, awaitingResume: false);
+      _runSentenceLoop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _overrunWatchdogSub?.cancel();
+    super.dispose();
   }
 
   /// [resumeFromPause]가 true면 이 루프의 첫 번째 "듣기" 단계만 문장 처음으로 되감지

@@ -15,7 +15,26 @@ class AudioPlayerService {
   StreamSubscription<Duration>? _boundarySub;
   Completer<void>? _activeCompleter;
 
-  Stream<Duration> get positionStream => _player.positionStream;
+  // 2026-08-09: `_hardReset()`은 `_player` 인스턴스를 통째로 새로 만든다 — `positionStream`
+  // 게터가 매번 `_player.positionStream`을 그대로 돌려주면, 리셋 *전에* 구독을 걸어둔
+  // 쪽(예: `ShadowingController`가 잠금화면 미니 플레이어의 임의 재생을 감시하려고 앱
+  // 실행 내내 하나의 구독을 유지하는 경우)은 리셋 이후 죽은 스트림을 붙들고 조용히
+  // 아무 이벤트도 못 받게 된다. `_boundarySub`처럼 매 재생마다 새로 구독하는 곳은
+  // 문제없지만, 그렇지 않은 장기 구독을 위해 안정적인 브로드캐스트 스트림 하나로
+  // 감싸고, `_player`가 바뀔 때마다 내부적으로 다시 연결한다.
+  final _positionController = StreamController<Duration>.broadcast();
+  StreamSubscription<Duration>? _positionForwardSub;
+
+  AudioPlayerService() {
+    _attachPositionForwarding();
+  }
+
+  void _attachPositionForwarding() {
+    _positionForwardSub?.cancel();
+    _positionForwardSub = _player.positionStream.listen(_positionController.add);
+  }
+
+  Stream<Duration> get positionStream => _positionController.stream;
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Duration get duration => _player.duration ?? Duration.zero;
   Duration get position => _player.position;
@@ -163,6 +182,7 @@ class AudioPlayerService {
     final isLocal = _currentSourceIsLocal;
     final oldPlayer = _player;
     _player = AudioPlayer();
+    _attachPositionForwarding();
     // 2026-08-07: dispose() 전에 stop()을 한 번 먼저 호출해 마지막 상태 이벤트를
     // 정리시킨다 — 118분 파일 테스트에서 stop() 없이 바로 dispose()했더니 just_audio
     // 내부 스트림에 아주 살짝 늦게 도착한 이벤트가 이미 close된 Subject에 부딪히며
@@ -216,6 +236,8 @@ class AudioPlayerService {
 
   Future<void> dispose() async {
     await _boundarySub?.cancel();
+    await _positionForwardSub?.cancel();
+    await _positionController.close();
     await _player.dispose();
   }
 }
