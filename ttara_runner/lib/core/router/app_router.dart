@@ -6,9 +6,15 @@ import '../../presentation/home/ai_analyzing_screen.dart';
 import '../../presentation/home/file_upload_screen.dart';
 import '../../presentation/home/home_screen.dart';
 import '../../presentation/home/sentence_edit_screen.dart';
+import '../../presentation/my/account_screen.dart';
+import '../../presentation/my/customer_support_screen.dart';
+import '../../presentation/my/display_settings_screen.dart';
+import '../../presentation/my/learning_defaults_screen.dart';
 import '../../presentation/my/learning_history_screen.dart';
 import '../../presentation/my/my_home_screen.dart';
-import '../../presentation/my/settings_screen.dart';
+import '../../presentation/my/notification_settings_screen.dart';
+import '../../presentation/my/privacy_policy_screen.dart';
+import '../../presentation/my/terms_of_service_screen.dart';
 import '../../presentation/onboarding/onboarding_screen.dart';
 import '../../presentation/shadowing/session_summary_screen.dart';
 import '../../presentation/shadowing/shadowing_screen.dart';
@@ -50,7 +56,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               builder: (context, state) => const MyHomeScreen(),
               routes: [
                 GoRoute(path: 'history', builder: (context, state) => const LearningHistoryScreen()),
-                GoRoute(path: 'settings', builder: (context, state) => const SettingsScreen()),
+                GoRoute(
+                  path: 'settings/learning-defaults',
+                  builder: (context, state) => const LearningDefaultsScreen(),
+                ),
+                GoRoute(
+                  path: 'settings/notifications',
+                  builder: (context, state) => const NotificationSettingsScreen(),
+                ),
+                GoRoute(
+                  path: 'settings/display',
+                  builder: (context, state) => const DisplaySettingsScreen(),
+                ),
+                GoRoute(path: 'settings/account', builder: (context, state) => const AccountScreen()),
+                GoRoute(path: 'support', builder: (context, state) => const CustomerSupportScreen()),
+                GoRoute(path: 'support/terms', builder: (context, state) => const TermsOfServiceScreen()),
+                GoRoute(path: 'support/privacy', builder: (context, state) => const PrivacyPolicyScreen()),
               ],
             ),
           ]),

@@ -16,6 +16,10 @@ abstract class PurchaseRepository {
 
   Stream<bool> watchAdsRemoved();
 
+  /// 구매 완료 시각 — 마이 > 계정(#12-계정) 화면에서 "2026년 8월 10일에 구매" 같은
+  /// 표시에 쓰인다. 구매 전이거나 복원 이력이 없으면 null.
+  Stream<DateTime?> watchPurchasedAt();
+
   /// 구매 흐름 시작(스토어 결제 UI 표시 → 영수증 서버 검증까지 포함).
   /// 실패 시 [PurchaseFailure]를 던진다(구매 시트 인라인 에러 + 재시도).
   Future<void> purchaseRemoveAds();

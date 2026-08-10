@@ -74,8 +74,10 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
       }
       if (!_navigatedToSummary && next.isSessionFullyDone && (prev?.isSessionFullyDone ?? false) == false) {
         _navigatedToSummary = true;
+        // 2026-08-10: 통계 누적 자체는 이제 문장 단위로 실시간 처리된다
+        // (StatsRepository.recordProgress, ShadowingController._markSegmentCompleted)
+        // — 여기선 요약 화면에 보여줄 결과만 만든다.
         final result = await controller.buildSessionResult();
-        await ref.read(statsRepositoryProvider).recordSession(result);
         if (context.mounted) {
           context.pushReplacement('/shadowing/${widget.mediaId}/summary', extra: result);
         }

@@ -3,6 +3,7 @@ import '../../core/ads/ad_service.dart';
 import '../../core/audio/audio_player_service.dart';
 import '../../core/audio/cover_art_extractor.dart';
 import '../../core/audio/study_audio_handler.dart';
+import '../../core/notifications/reminder_notification_service.dart';
 import '../../core/permissions/permission_service.dart';
 import '../../data/local/local_kv_store.dart';
 import '../../data/repositories/fake_purchase_repository.dart';
@@ -69,6 +70,13 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
 final adServiceProvider = Provider<AdService>((ref) => NoOpAdService());
 
 final permissionServiceProvider = Provider<PermissionService>((ref) => PermissionService());
+
+/// 학습 리마인더(마이 > 알림 설정) 실제 로컬 알림 예약/취소 — 앱 전체에서 하나만
+/// 유지되는 싱글톤(내부에 `FlutterLocalNotificationsPlugin` 인스턴스를 갖고 있어
+/// 화면마다 새로 만들 필요가 없다).
+final reminderNotificationServiceProvider = Provider<ReminderNotificationService>((ref) {
+  return ReminderNotificationService();
+});
 
 /// 앱 전체에서 하나만 유지되는 진짜 싱글톤이어야 한다.
 ///

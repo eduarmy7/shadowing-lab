@@ -31,4 +31,7 @@ abstract class Formatters {
   }
 
   static String percent(double ratio) => '${(ratio * 100).clamp(0, 100).round()}%';
+
+  /// 날짜 → "2026년 8월 10일" / "8/10/2026" / "2026年8月10日" (마이 > 계정, 이용약관 등).
+  static String date(AppLocalizations l10n, DateTime d) => l10n.fullDateLabel(d.year, d.month, d.day);
 }

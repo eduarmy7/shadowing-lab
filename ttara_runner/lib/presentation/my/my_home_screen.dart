@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
@@ -94,15 +95,16 @@ class MyHomeScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           _MenuTile(label: l10n.allHistory, onTap: () => context.push('/my/history')),
           const Divider(height: AppSpacing.lg),
-          _MenuTile(label: l10n.sectionLearningDefaults, onTap: () => context.push('/my/settings')),
-          _MenuTile(label: l10n.notificationSettings, onTap: () => context.push('/my/settings')),
-          _MenuTile(label: l10n.displaySettings, onTap: () => context.push('/my/settings')),
-          _MenuTile(label: l10n.accountLabel, onTap: () => context.push('/my/settings')),
-          _MenuTile(label: l10n.customerSupport, onTap: () => context.push('/my/settings')),
+          _MenuTile(
+              label: l10n.sectionLearningDefaults, onTap: () => context.push('/my/settings/learning-defaults')),
+          _MenuTile(label: l10n.notificationSettings, onTap: () => context.push('/my/settings/notifications')),
+          _MenuTile(label: l10n.displaySettings, onTap: () => context.push('/my/settings/display')),
+          _MenuTile(label: l10n.accountLabel, onTap: () => context.push('/my/settings/account')),
+          _MenuTile(label: l10n.customerSupport, onTap: () => context.push('/my/support')),
           const Divider(height: AppSpacing.lg),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Text(l10n.versionText('1.0.0'), style: theme.textTheme.bodySmall),
+            child: Text(l10n.versionText(AppConstants.appVersion), style: theme.textTheme.bodySmall),
           ),
         ],
       ),

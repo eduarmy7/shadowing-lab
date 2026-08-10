@@ -59,8 +59,9 @@ class UserStats extends Equatable {
       [currentStreakDays, totalSentences, totalStudyTimeMs, totalStudyDays, dailyHeatmap];
 }
 
-/// 세션 1회(문장 시작~종료) 결과 — #6 학습 완료 요약 화면 입력값이자
-/// StatsRepository.recordSession()의 파라미터.
+/// 세션 1회(문장 시작~종료) 결과 — #6 학습 완료 요약 화면(책을 끝까지 다 마쳤을 때만
+/// 뜨는 축하 화면)의 표시용 입력값. 2026-08-10부터 통계 누적 자체는 이 결과가 아니라
+/// [StatsRepository.recordProgress]가 문장 단위로 실시간 처리한다.
 class LearningSessionResult extends Equatable {
   final String mediaId;
   final int sentencesCompleted;

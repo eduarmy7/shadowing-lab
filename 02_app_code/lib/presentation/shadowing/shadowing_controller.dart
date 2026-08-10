@@ -130,9 +130,16 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
 
   int _gen = 0;
   String _audioSource = '';
+  String _fileName = '';
   StreamSubscription<Duration>? _overrunWatchdogSub;
   bool _resyncingFromOverrun = false;
   StudyAudioHandler? _audioHandler;
+
+  // 2026-08-10: 전체 학습기록(#11) 실시간 집계용 — 문장이 완료 처리될 때마다
+  // "마지막 기록 이후 흐른 시간"을 그 문장(오늘 날짜+이 콘텐츠)에 귀속시킨다.
+  // 정확한 스톱워치는 아니지만(따라 말하기 대기시간 등도 포함), 실제 학습에 쓴
+  // 시간의 합리적 근사치다.
+  DateTime _lastProgressFlushAt = DateTime.now();
 
   ShadowingController(this.ref, this.mediaId) : super(ShadowingSessionState()) {
     _init();
@@ -144,6 +151,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       final segments = await ref.read(segmentationRepositoryProvider).getSegments(mediaId);
       final media = await ref.read(mediaRepositoryProvider).getById(mediaId);
       _audioSource = media?.localPath ?? '';
+      _fileName = media?.fileName ?? '';
       final startIndex = media?.lastPlayedSentenceIndex ?? 0;
       // 2026-08-09: 최근학습(홈)에서 이미 진행 중이던 책을 다시 열면(=이어서 학습,
       // lastPlayedSentenceIndex > 0) 곧장 한 문장씩 자동재생으로 들어가는 대신 한꺼번에
@@ -429,6 +437,22 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       await ref.read(segmentationRepositoryProvider).saveEditedSegments(mediaId, newSegments);
     } catch (_) {
       // 저장 실패해도 화면 표시(로컬 상태)는 유지 — toggleFlag와 동일한 원칙.
+    }
+
+    // 2026-08-10: 전체 학습기록(#11) 실시간 집계 — 문장당 정확히 한 번만 호출되므로
+    // (위 `if (seg.completed) return`) 총 문장 수를 이중 집계할 위험이 없다.
+    final now = DateTime.now();
+    final elapsedMs = now.difference(_lastProgressFlushAt).inMilliseconds.clamp(0, 1000 * 60 * 10);
+    _lastProgressFlushAt = now;
+    try {
+      await ref.read(statsRepositoryProvider).recordProgress(
+            mediaId: mediaId,
+            fileName: _fileName,
+            sentenceIndex: index,
+            deltaDurationMs: elapsedMs,
+          );
+    } catch (_) {
+      // 통계 저장 실패는 학습 흐름을 막지 않는다.
     }
   }
 

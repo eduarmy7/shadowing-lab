@@ -9,7 +9,7 @@ import 'core/theme/app_motion.dart';
 import 'core/theme/app_theme.dart';
 import 'domain/entities/learning_settings.dart';
 import 'l10n/gen/app_localizations.dart';
-import 'presentation/my/settings_screen.dart';
+import 'presentation/my/settings_providers.dart';
 import 'presentation/providers/repository_providers.dart';
 
 Future<void> main() async {
@@ -32,6 +32,28 @@ Future<void> main() async {
       androidNotificationOngoing: true,
     ),
   );
+
+  // 2026-08-10: 학습 리마인더가 켜져 있으면 앱을 열 때마다 다시 예약한다 — Android는
+  // 기기가 완전히 재부팅되면 예약된 알람이 초기화되는데(별도 네이티브 BootReceiver는
+  // 이번 범위 밖), 최소한 앱을 한 번이라도 열면 여기서 되살아나게 한다. 임시
+  // ProviderContainer로 부팅 시점 1회성 부수효과만 처리하고 바로 버린다 — runApp의
+  // 진짜 ProviderScope와는 독립적이어도 문제없다(둘 다 같은 영구 저장소/OS API를
+  // 다루는 얇은 서비스일 뿐, 상태를 컨테이너 자체에 들고 있지 않는다).
+  final bootstrapContainer = ProviderContainer();
+  try {
+    final settings = await bootstrapContainer.read(settingsRepositoryProvider).getSettings();
+    if (settings.reminderEnabled) {
+      final reminderService = bootstrapContainer.read(reminderNotificationServiceProvider);
+      final granted = await reminderService.requestPermission();
+      if (granted) {
+        await reminderService.scheduleDaily(settings.reminderTime);
+      }
+    }
+  } catch (_) {
+    // 리마인더 재예약 실패는 앱 시작을 막을 이유가 아니다.
+  } finally {
+    bootstrapContainer.dispose();
+  }
 
   runApp(ProviderScope(
     overrides: [

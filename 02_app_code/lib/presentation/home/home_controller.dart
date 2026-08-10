@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../domain/entities/daily_study_entry.dart';
 import '../../domain/entities/media_item.dart';
 import '../../domain/entities/user_stats.dart';
 import '../providers/repository_providers.dart';
@@ -17,6 +18,11 @@ final homeMediaListProvider = StreamProvider.autoDispose<List<MediaItem>>((ref) 
 /// 스트릭 미니배지(#1 "🔥 3일째 학습 중") — 마이 탭과 동일한 통계 소스를 공유.
 final userStatsProvider = StreamProvider.autoDispose<UserStats>((ref) {
   return ref.watch(statsRepositoryProvider).watchStats();
+});
+
+/// 전체 학습기록(#11) 화면 전용 — 날짜(yyyy-MM-dd) → 그날 콘텐츠별 학습 요약.
+final dailyStudyLogProvider = StreamProvider.autoDispose<Map<String, List<DailyStudyEntry>>>((ref) {
+  return ref.watch(statsRepositoryProvider).watchDailyLog();
 });
 
 final homeControllerProvider = Provider<HomeController>((ref) => HomeController(ref));

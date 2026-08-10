@@ -75,6 +75,15 @@ dependencies:
   intl: ^0.20.2
   collection: ^1.18.0
 
+  # ── 학습 리마인더 로컬 알림 ────────────────────────
+  # 2026-08-10: 마이 > 알림 설정에서 "학습 리마인더"를 켜면 실제로 매일 그 시간에
+  # 로컬 알림이 뜨게 한다(요청 전엔 켜고 꺼지는 스위치만 있고 실제 발동은 없었다).
+  # 서버 푸시가 아니라 기기에서 예약하는 로컬 알림이라 백엔드/네트워크가 필요 없다.
+  flutter_local_notifications: ^18.0.1
+  # 로컬 알림의 "매일 이 시간에" 반복 예약(zonedSchedule)은 시간대 인식 DateTime이
+  # 필요해서 timezone 패키지가 필수 동반 의존성이다.
+  timezone: ^0.9.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

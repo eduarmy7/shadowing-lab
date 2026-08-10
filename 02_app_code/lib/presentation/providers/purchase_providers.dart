@@ -8,3 +8,8 @@ import 'repository_providers.dart';
 final adsRemovedProvider = StreamProvider.autoDispose<bool>((ref) {
   return ref.watch(purchaseRepositoryProvider).watchAdsRemoved();
 });
+
+/// 구매 완료 시각 — 마이 > 계정 화면 전용.
+final purchasedAtProvider = StreamProvider.autoDispose<DateTime?>((ref) {
+  return ref.watch(purchaseRepositoryProvider).watchPurchasedAt();
+});
