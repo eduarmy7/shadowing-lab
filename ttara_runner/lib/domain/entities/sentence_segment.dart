@@ -21,6 +21,11 @@ class SentenceSegment extends Equatable {
   final bool edited; // 사용자가 경계/텍스트를 수동 조정했는지 (#4 편집 이력)
   final int? repeatCountOverride; // 문장별 반복횟수를 기본값과 다르게 지정한 경우
   final bool flaggedByUser; // 사용자가 "잘 안되는 문장"으로 직접 표시했는지 (#5 학습 화면 체크)
+  // 2026-08-10: 목표 반복 횟수를 채워 완료 표시(초록 체크)된 문장인지 — 문장 자체에
+  // 영구 저장해야 한다. 예전엔 `ShadowingController`의 세션 한정 `Set<int>`로만
+  // 관리해서 화면을 나갔다 들어오면 사라졌고, 병합/분리로 문장 인덱스가 바뀌면 옛
+  // 인덱스가 엉뚱한 문장을 가리켜 체크가 안 맞았다.
+  final bool completed;
 
   const SentenceSegment({
     required this.id,
@@ -33,6 +38,7 @@ class SentenceSegment extends Equatable {
     this.edited = false,
     this.repeatCountOverride,
     this.flaggedByUser = false,
+    this.completed = false,
   });
 
   int get durationMs => endMs - startMs;
@@ -53,6 +59,7 @@ class SentenceSegment extends Equatable {
     bool? edited,
     int? repeatCountOverride,
     bool? flaggedByUser,
+    bool? completed,
   }) {
     return SentenceSegment(
       id: id ?? this.id,
@@ -65,6 +72,7 @@ class SentenceSegment extends Equatable {
       edited: edited ?? this.edited,
       repeatCountOverride: repeatCountOverride ?? this.repeatCountOverride,
       flaggedByUser: flaggedByUser ?? this.flaggedByUser,
+      completed: completed ?? this.completed,
     );
   }
 
@@ -79,6 +87,7 @@ class SentenceSegment extends Equatable {
         edited: json['edited'] as bool? ?? false,
         repeatCountOverride: json['repeatCountOverride'] as int?,
         flaggedByUser: json['flaggedByUser'] as bool? ?? false,
+        completed: json['completed'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -92,6 +101,7 @@ class SentenceSegment extends Equatable {
         'edited': edited,
         'repeatCountOverride': repeatCountOverride,
         'flaggedByUser': flaggedByUser,
+        'completed': completed,
       };
 
   @override
@@ -106,5 +116,6 @@ class SentenceSegment extends Equatable {
         edited,
         repeatCountOverride,
         flaggedByUser,
+        completed,
       ];
 }

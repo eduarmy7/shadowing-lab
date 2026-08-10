@@ -163,12 +163,16 @@ class SegmentationReviewController extends StateNotifier<SegmentationReviewState
     // 2026-08-07: split과 같은 이유로 새 id를 준다 — 병합도 두 문장을 하나의 새
     // 문장으로 합치는 구조적 변화라, id가 그대로면 편집 화면의 파형 표시 시간창이
     // 안 넓어져서(여전히 a만큼의 좁은 창) "병합이 안 된 것처럼" 보인다.
+    // 2026-08-10: 완료 표시(초록 체크)는 두 문장 다 완료했을 때만 병합 결과도 완료로
+    // 본다 — `a.copyWith`가 기본으로 a의 completed만 물려받으면, "완료된 문장 + 아직
+    // 안 한 문장"을 합쳤을 때 실제로는 절반만 학습한 병합 문장이 완료로 표시된다.
     final merged = a.copyWith(
       id: '${a.id}-merged-${DateTime.now().millisecondsSinceEpoch}',
       text: mergedText,
       clearText: mergedText == null,
       endMs: b.endMs,
       edited: true,
+      completed: a.completed && b.completed,
     );
     list[idx] = merged;
     list.removeAt(idx + 1);

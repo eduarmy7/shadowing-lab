@@ -162,6 +162,11 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         showTranslation: settings.autoShowTranslation,
         sentenceGapMode: settings.sentenceGapMode,
         viewMode: initialViewMode,
+        // 2026-08-10: 완료 체크는 문장 자체에 영구 저장된 값에서 매번 다시 계산한다
+        // (세션 한정 Set이 아니다) — 그래야 화면을 나갔다 들어와도 유지되고,
+        // 학습 중 병합/분리를 해도 [reloadSegments]가 최신 인덱스 기준으로
+        // 다시 계산해준다.
+        fullyCompletedIndices: _completedIndicesOf(segments),
       );
 
       if (segments.isNotEmpty && _audioSource.isNotEmpty) {
@@ -313,6 +318,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       if (newCompleted >= state.targetRepeats) {
         // ── 3) 문장 완료 ──────────────────────────────────────
         HapticFeedback.mediumImpact();
+        await _markSegmentCompleted(state.currentIndex);
         final doneSet = {...state.fullyCompletedIndices, state.currentIndex};
         state = state.copyWith(
           phase: ShadowingPhase.sentenceComplete,
@@ -399,6 +405,30 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       return false;
     } finally {
       await positionSub?.cancel();
+    }
+  }
+
+  Set<int> _completedIndicesOf(List<SentenceSegment> segments) => {
+        for (final s in segments)
+          if (s.completed) s.index,
+      };
+
+  /// 2026-08-10: 문장이 목표 반복 횟수를 채웠을 때 호출 — 문장 자체(`SentenceSegment.
+  /// completed`)에 영구 저장한다. 예전엔 [ShadowingSessionState.fullyCompletedIndices]
+  /// (세션 한정 `Set<int>`)만 갱신해서 화면을 나갔다 들어오면 사라졌고, 병합/분리로
+  /// 문장이 재인덱싱되면 옛 인덱스가 엉뚱한 문장을 가리켰다(사용자 보고: 병합 후
+  /// 학습 안 한 문장까지 초록 체크로 남음).
+  Future<void> _markSegmentCompleted(int index) async {
+    if (index < 0 || index >= state.segments.length) return;
+    final seg = state.segments[index];
+    if (seg.completed) return;
+    final newSegments = [...state.segments];
+    newSegments[index] = seg.copyWith(completed: true);
+    state = state.copyWith(segments: newSegments);
+    try {
+      await ref.read(segmentationRepositoryProvider).saveEditedSegments(mediaId, newSegments);
+    } catch (_) {
+      // 저장 실패해도 화면 표시(로컬 상태)는 유지 — toggleFlag와 동일한 원칙.
     }
   }
 
@@ -552,6 +582,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         }
       }
 
+      await _markSegmentCompleted(state.currentIndex);
       final doneSet = {...state.fullyCompletedIndices, state.currentIndex};
       state = state.copyWith(fullyCompletedIndices: doneSet);
       await _persistProgress(doneSet.length);
@@ -596,7 +627,15 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     final segments = await ref.read(segmentationRepositoryProvider).getSegments(mediaId);
     if (!mounted) return;
     final clampedIndex = segments.isEmpty ? 0 : state.currentIndex.clamp(0, segments.length - 1);
-    state = state.copyWith(segments: segments, currentIndex: clampedIndex);
+    // 2026-08-10: 병합/분리로 문장이 재인덱싱됐을 수 있으니, 옛 fullyCompletedIndices를
+    // 그대로 들고 있지 않고 방금 불러온 segments의 `completed` 필드에서 다시 계산한다
+    // — 그래야 병합된 문장이 실제로 둘 다 완료했을 때만 체크로 남고, 병합 때문에
+    // 밀려난 다른 문장이 엉뚱하게 체크되는 일이 없다.
+    state = state.copyWith(
+      segments: segments,
+      currentIndex: clampedIndex,
+      fullyCompletedIndices: _completedIndicesOf(segments),
+    );
     if (state.viewMode == ShadowingViewMode.single) _runSentenceLoop();
   }
 
