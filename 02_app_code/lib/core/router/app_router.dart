@@ -9,6 +9,7 @@ import '../../presentation/home/sentence_edit_screen.dart';
 import '../../presentation/my/account_screen.dart';
 import '../../presentation/my/customer_support_screen.dart';
 import '../../presentation/my/display_settings_screen.dart';
+import '../../presentation/my/language_settings_screen.dart';
 import '../../presentation/my/learning_defaults_screen.dart';
 import '../../presentation/my/learning_history_screen.dart';
 import '../../presentation/my/my_home_screen.dart';
@@ -67,6 +68,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 GoRoute(
                   path: 'settings/display',
                   builder: (context, state) => const DisplaySettingsScreen(),
+                ),
+                GoRoute(
+                  path: 'settings/language',
+                  builder: (context, state) => const LanguageSettingsScreen(),
                 ),
                 GoRoute(path: 'settings/account', builder: (context, state) => const AccountScreen()),
                 GoRoute(path: 'support', builder: (context, state) => const CustomerSupportScreen()),

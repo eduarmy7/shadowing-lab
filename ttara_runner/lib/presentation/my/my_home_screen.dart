@@ -99,6 +99,7 @@ class MyHomeScreen extends ConsumerWidget {
               label: l10n.sectionLearningDefaults, onTap: () => context.push('/my/settings/learning-defaults')),
           _MenuTile(label: l10n.notificationSettings, onTap: () => context.push('/my/settings/notifications')),
           _MenuTile(label: l10n.displaySettings, onTap: () => context.push('/my/settings/display')),
+          _MenuTile(label: l10n.language, onTap: () => context.push('/my/settings/language')),
           _MenuTile(label: l10n.accountLabel, onTap: () => context.push('/my/settings/account')),
           _MenuTile(label: l10n.customerSupport, onTap: () => context.push('/my/support')),
           const Divider(height: AppSpacing.lg),

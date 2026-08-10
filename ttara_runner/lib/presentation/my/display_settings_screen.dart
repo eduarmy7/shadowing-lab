@@ -5,7 +5,9 @@ import '../../domain/entities/learning_settings.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'settings_providers.dart';
 
-/// 마이 > 화면 — 2026-08-10부터 분리(사용자 요청: "화면에 화면만"). 테마/언어만 다룬다.
+/// 마이 > 화면 — 2026-08-10부터 분리(사용자 요청: "화면에 화면만"). 테마만 다룬다.
+/// 언어는 2026-08-11부터 별도 화면([LanguageSettingsScreen])으로 다시 분리됐다 —
+/// 마이 탭 메뉴 목록에 "언어"가 독립된 항목으로 노출되길 원한 사용자 요청.
 class DisplaySettingsScreen extends ConsumerWidget {
   const DisplaySettingsScreen({super.key});
 
@@ -33,20 +35,6 @@ class DisplaySettingsScreen extends ConsumerWidget {
                   DropdownMenuItem(value: AppThemeModeOption.dark, child: Text(l10n.themeDark)),
                 ],
                 onChanged: (v) => v == null ? null : updateLearningSettings(ref, (s) => s.copyWith(themeMode: v)),
-              ),
-            ),
-            ListTile(
-              title: Text(l10n.language),
-              trailing: DropdownButton<AppLanguageOption>(
-                value: settings.languageOption,
-                underline: const SizedBox.shrink(),
-                items: [
-                  DropdownMenuItem(value: AppLanguageOption.system, child: Text(l10n.languageSystem)),
-                  DropdownMenuItem(value: AppLanguageOption.korean, child: Text(l10n.languageKorean)),
-                  DropdownMenuItem(value: AppLanguageOption.english, child: Text(l10n.languageEnglish)),
-                  DropdownMenuItem(value: AppLanguageOption.japanese, child: Text(l10n.languageJapanese)),
-                ],
-                onChanged: (v) => v == null ? null : updateLearningSettings(ref, (s) => s.copyWith(languageOption: v)),
               ),
             ),
           ],
