@@ -15,7 +15,9 @@ abstract class AppConstants {
 
   /// 영상과 함께(선택) 첨부하는 자막 파일 확장자 — 있으면 자막 파싱 경로,
   /// 없으면 무음 감지 경로(00_input.md 문장 분리 방식).
-  static const List<String> supportedSubtitleExtensions = ['srt', 'vtt'];
+  /// 2026-08-10: 'smi' 추가 — 한국 사용자층 자막 파일 다수가 SAMI 포맷이라는
+  /// 실사용 피드백으로 지원 추가(core/utils/subtitle_parser.dart의 `_parseSami`).
+  static const List<String> supportedSubtitleExtensions = ['srt', 'vtt', 'smi'];
 
   /// 업로드 가능 최대 길이(분) — #2 화면 안내 문구 "최대 60분".
   static const int maxMediaDurationMinutes = 60;

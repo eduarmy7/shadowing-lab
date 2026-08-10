@@ -18,7 +18,7 @@ import '../mock/mock_sentences.dart';
 ///
 /// 2026-08-05 STT 완전 폐기 결정(00_input.md) 이후 이 클래스는 네트워크를 전혀 쓰지
 /// 않는다:
-/// - **자막(SRT/VTT) 첨부됨**: `core/utils/subtitle_parser.dart`로 실제 파일을 파싱한다.
+/// - **자막(SRT/VTT/SMI) 첨부됨**: `core/utils/subtitle_parser.dart`로 실제 파일을 파싱한다.
 /// - **자막 없음(음성만)**: 2026-08-05(3차)부터 `core/audio/silence_detector.dart`가
 ///   실제 오디오 파형(진폭)을 분석해 무음 구간으로 문장 경계를 찾는다(진짜 로직) — 단,
 ///   `localFilePath`가 번들 asset(`asset:///`) 경로인 경우(=샘플MP3 체험하기, 원래도
@@ -263,7 +263,7 @@ class FakeSegmentationRepository implements SegmentationRepository {
         progress: 1,
         failureReason: failureReason,
         errorMessage: switch (failureReason) {
-          SegmentationFailureReason.unsupportedSubtitleFormat => '지원하지 않는 자막 형식이에요 (SRT/VTT만 가능해요)',
+          SegmentationFailureReason.unsupportedSubtitleFormat => '지원하지 않는 자막 형식이에요 (SRT/VTT/SMI만 가능해요)',
           SegmentationFailureReason.noClearSilenceDetected => '뚜렷한 무음 구간을 찾지 못했어요',
           SegmentationFailureReason.unknown => '문장을 나누는 중 문제가 발생했어요',
         },
