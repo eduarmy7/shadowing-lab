@@ -15,6 +15,9 @@ const _placeholderCompanyJa = '[事業者名/開発者名]';
 const _placeholderEmail = '[문의 이메일 주소]';
 const _placeholderEmailEn = '[contact email address]';
 const _placeholderEmailJa = '[問い合わせ用メールアドレス]';
+const _placeholderContact = '[성명 또는 담당부서]';
+const _placeholderContactEn = '[Name or Department]';
+const _placeholderContactJa = '[氏名または担当部署]';
 const _placeholderDate = '[YYYY년 MM월 DD일]';
 const _placeholderDateEn = '[Month DD, YYYY]';
 const _placeholderDateJa = '[YYYY年MM月DD日]';
@@ -97,48 +100,98 @@ final _termsKo = <LegalSection>[
 final _privacyKo = <LegalSection>[
   (
     '개요',
-    '쉐도잉랩("서비스")은 이용자의 개인정보를 중요하게 생각하며 관련 법령을 준수합니다. 본 개인정보처리방침은 '
-        '서비스가 어떤 정보를 어떻게 처리하는지 설명합니다.',
+    '쉐도잉랩(이하 "서비스")은 이용자의 개인정보를 중요하게 생각하며 「개인정보 보호법」 등 관련 법령을 준수합니다.\n\n'
+        '본 개인정보처리방침은 서비스 이용 과정에서 처리되는 정보의 종류, 이용 목적, 보관 및 삭제 방법 등에 관한 사항을 설명합니다.',
   ),
   (
-    '1. 수집하는 정보',
-    '서비스는 회원가입·로그인 절차가 없으며, 이름·이메일 등 개인 식별정보를 수집하지 않습니다. 이용자가 업로드하는 '
-        '음성/영상 파일, 문장 분리 결과, 학습 진행 기록은 모두 이용자의 기기 내부에만 저장되며, 회사의 서버로 '
-        '전송되지 않습니다.',
+    '1. 이용자가 입력하거나 저장하는 정보',
+    '서비스는 별도의 회원가입 또는 로그인 절차를 제공하지 않으며, 회사는 회원가입을 목적으로 이용자의 이름, 이메일 주소, 전화번호 등의 개인정보를 수집하지 않습니다.\n\n'
+        '이용자가 학습을 위해 선택하거나 불러오는 다음 정보는 원칙적으로 이용자의 기기 내부에서만 처리됩니다.\n'
+        '- 이용자가 선택하거나 불러온 음성 및 영상 파일\n'
+        '- 음성·영상 파일의 문장 분리 등 처리 결과\n'
+        '- 학습 진행 상태 및 학습 기록\n'
+        '- 앱 설정 정보\n\n'
+        '위 정보는 회사의 서버로 업로드되거나 저장되지 않으며, 회사는 해당 콘텐츠에 직접 접근할 수 없습니다.\n\n'
+        '다만 서비스 제공 과정에서 이용되는 제3자 SDK 및 플랫폼 서비스는 아래에서 설명하는 정보를 별도로 처리할 수 있습니다.',
   ),
   (
-    '2. 자동으로 수집되는 정보',
-    '서비스 자체는 별도의 분석(Analytics) 도구를 사용하지 않습니다. 다만 광고가 표시되는 화면에서는 광고 '
-        '제공업체가 광고 식별자(예: Android Advertising ID, IDFA) 등 기기 식별 정보를 자체적으로 처리할 수 있으며, '
-        '이는 각 광고 네트워크의 개인정보처리방침이 별도로 적용됩니다.',
+    '2. 광고 서비스에서 처리될 수 있는 정보',
+    '무료 버전의 서비스에는 광고가 표시될 수 있으며, 이를 위해 Google AdMob 등 제3자 광고 서비스가 사용될 수 있습니다.\n\n'
+        '광고 서비스 제공 과정에서 광고 제공업체는 다음과 같은 정보를 자동으로 처리할 수 있습니다.\n'
+        '- IP 주소\n'
+        '- 광고 식별자(Android Advertising ID 등) 및 기타 기기 또는 앱 식별자\n'
+        '- 앱 실행, 광고 노출·클릭 등 서비스 및 광고와의 상호작용 정보\n'
+        '- 앱 및 광고 SDK의 오류, 성능 등 진단정보\n'
+        '- 그 밖에 광고 제공, 광고 성과 측정 및 부정 이용 방지에 필요한 정보\n\n'
+        '이러한 정보의 구체적인 처리 방식은 해당 광고 서비스 제공업체의 개인정보처리방침 및 정책에 따릅니다.\n\n'
+        '회사는 이용자가 학습을 위해 불러온 음성·영상 파일 또는 해당 파일의 내용을 광고 제공업체에 제공하지 않습니다.',
   ),
   (
-    '3. 인앱 구매 정보',
-    '"광고 제거" 구매 시 결제 정보는 Apple/Google 등 각 플랫폼이 직접 처리하며, 회사는 카드번호 등 결제 수단 '
-        '정보에 접근하지 않습니다. 회사가 보유하는 정보는 구매 완료 여부(예/아니오)뿐입니다.',
+    '3. 인앱 구매와 관련된 정보',
+    '서비스는 광고 제거 등을 위한 인앱 구매 기능을 제공할 수 있습니다.\n\n'
+        '결제 및 결제수단 정보는 Google Play 등 앱 마켓 사업자가 직접 처리하며, 회사는 이용자의 카드번호, 계좌번호 등 결제수단 정보에 접근하지 않습니다.\n\n'
+        '서비스는 구매 여부 확인 및 구매 기능 제공을 위해 앱 마켓이 제공하는 상품 정보, 구매 상태 등 필요한 정보를 처리할 수 있습니다.\n\n'
+        '별도의 안내가 없는 한 회사는 이러한 구매 정보를 자체 서버에 별도로 저장하지 않습니다.',
   ),
   (
-    '4. 정보의 보관 및 삭제',
-    '모든 학습 데이터는 이용자의 기기에만 저장됩니다. 앱을 삭제하거나 앱 내 삭제 기능을 사용하면 해당 데이터는 '
-        '즉시 영구적으로 삭제되며, 회사가 별도로 보관하는 사본은 없습니다.',
+    '4. 정보의 이용 목적',
+    '서비스에서 처리되는 정보는 다음 목적을 위해 사용됩니다.\n'
+        '- 음성·영상 파일을 이용한 어학 학습 기능 제공\n'
+        '- 학습 진행 상태 및 이용자 설정 저장\n'
+        '- 광고 제공 및 광고 성과 측정\n'
+        '- 인앱 구매 확인 및 광고 제거 기능 제공\n'
+        '- 서비스 안정성 확보 및 부정 이용 방지\n\n'
+        '회사는 이용자의 음성·영상 콘텐츠를 광고, 마케팅 또는 별도의 콘텐츠 제작 목적으로 이용하지 않습니다.',
   ),
   (
-    '5. 제3자 제공',
-    '회사는 이용자의 정보를 제3자에게 판매하거나 제공하지 않습니다. 다만 광고 SDK, 앱스토어 결제 시스템 등 서비스 '
-        '운영에 필수적인 제3자 서비스는 각자의 개인정보처리방침에 따라 별도로 정보를 처리할 수 있습니다.',
+    '5. 정보의 보관 및 삭제',
+    '이용자가 서비스에서 사용하는 음성·영상 파일, 처리 결과 및 학습 기록은 원칙적으로 이용자의 기기에만 저장됩니다.\n\n'
+        '이용자는 앱에서 제공하는 삭제 기능을 통해 해당 데이터를 삭제할 수 있습니다.\n\n'
+        '앱을 삭제하거나 기기를 초기화하는 경우 기기에 저장된 데이터가 삭제될 수 있으며, 회사는 해당 정보의 별도 사본을 보유하지 않으므로 이를 복구할 수 없습니다.\n\n'
+        '광고 제공업체 또는 앱 마켓 사업자가 처리하는 정보의 보관 및 삭제에 대해서는 해당 사업자의 정책이 적용됩니다.',
   ),
   (
-    '6. 아동의 개인정보',
-    '서비스는 만 14세 미만 아동을 주 대상으로 하지 않으며, 개인 식별정보를 별도로 수집하지 않으므로 아동으로부터 '
-        '개인정보를 의도적으로 수집하지 않습니다.',
+    '6. 제3자 서비스 이용',
+    '서비스는 다음과 같은 외부 서비스를 이용할 수 있습니다.\n\n'
+        'Google AdMob\n'
+        '- 목적: 광고 제공, 광고 성과 측정 및 부정 이용 방지\n'
+        '- 처리될 수 있는 정보: IP 주소, 광고 및 기기 식별자, 앱 상호작용 정보, 진단정보 등\n\n'
+        'Google Play\n'
+        '- 목적: 앱 배포 및 인앱 구매 처리\n'
+        '- 처리될 수 있는 정보: 구매 및 거래에 필요한 정보\n\n'
+        '각 외부 서비스 사업자는 자신의 개인정보처리방침 및 관련 정책에 따라 정보를 처리할 수 있습니다.\n\n'
+        '회사는 이용자가 학습을 위해 불러온 음성·영상 파일 또는 해당 파일의 내용을 위 사업자에게 제공하지 않습니다.',
   ),
   (
-    '7. 이용자의 권리',
-    '서비스는 서버에 개인정보를 저장하지 않으므로, 별도의 열람·정정·삭제 요청 없이도 이용자는 앱 내 삭제 기능이나 '
-        '앱 삭제를 통해 언제든지 본인의 모든 데이터를 완전히 삭제할 수 있습니다.',
+    '7. 이용자의 권리 및 정보 관리',
+    '서비스의 주요 학습 데이터는 이용자의 기기에 저장되므로 이용자는 앱 내 삭제 기능 등을 통해 직접 데이터를 관리할 수 있습니다.\n\n'
+        '회사가 별도의 서버에 이용자의 학습 데이터를 보관하지 않는 경우 회사는 해당 데이터를 직접 열람, 수정 또는 삭제할 수 없습니다.\n\n'
+        '광고 식별자 등 제3자 서비스가 처리하는 정보는 기기의 개인정보 또는 광고 설정과 해당 서비스 제공업체가 제공하는 방법을 통해 관리할 수 있습니다.',
   ),
-  ('8. 개인정보처리방침의 변경', '이 방침이 변경되는 경우 앱 내 공지 또는 업데이트를 통해 안내합니다.'),
-  ('9. 문의', '개인정보 관련 문의사항은 $_placeholderEmail로 연락해 주세요.'),
+  (
+    '8. 아동의 개인정보',
+    '서비스는 만 14세 미만 아동의 개인정보를 별도로 수집하기 위한 회원가입 또는 계정 기능을 제공하지 않습니다.\n\n'
+        '회사는 만 14세 미만 아동으로부터 이름, 연락처 등 개인 식별정보를 의도적으로 수집하지 않습니다.\n\n'
+        '다만 서비스의 이용 대상 및 광고 제공 방식에 따라 관련 법령 및 앱 마켓의 아동·가족 관련 정책이 적용되는 경우 해당 정책에 필요한 조치를 적용합니다.',
+  ),
+  (
+    '9. 개인정보의 안전성',
+    '회사는 이용자의 음성·영상 파일 및 주요 학습 데이터를 회사 서버로 전송하지 않고 이용자의 기기 내부에서 처리하는 것을 원칙으로 합니다.\n\n'
+        '제3자 서비스를 통해 정보가 전송되는 경우 해당 서비스 제공업체의 보안 및 개인정보 보호 정책이 적용됩니다.',
+  ),
+  (
+    '10. 개인정보 보호 문의',
+    '개인정보 보호 관련 문의는 아래 연락처로 접수할 수 있습니다.\n\n'
+        '서비스명: 쉐도잉랩\n'
+        '개발자/사업자: $_placeholderCompany\n'
+        '개인정보 보호 담당: $_placeholderContact\n'
+        '이메일: $_placeholderEmail',
+  ),
+  (
+    '11. 개인정보처리방침의 변경',
+    '본 개인정보처리방침의 내용이 변경되는 경우 앱 내 공지, 앱 업데이트 또는 서비스가 제공하는 기타 적절한 방법을 통해 변경 내용을 안내합니다.\n\n'
+        '중요한 변경이 있는 경우 관련 법령이 요구하는 방식에 따라 사전에 안내합니다.',
+  ),
   ('시행일', _placeholderDate),
 ];
 
@@ -208,48 +261,122 @@ final _termsEn = <LegalSection>[
 final _privacyEn = <LegalSection>[
   (
     'Overview',
-    'ShadowingLab (the "Service") takes your privacy seriously and complies with applicable law. This Privacy '
-        'Policy explains what information the Service processes and how.',
+    'ShadowingLab ("the Service") takes user privacy seriously and complies with applicable personal data '
+        'protection laws.\n\n'
+        'This Privacy Policy explains the types of information processed while using the Service, the purposes of '
+        'use, and how it is stored and deleted.',
   ),
   (
-    '1. Information We Collect',
-    'The Service has no account or login system and does not collect personal identifiers such as your name or '
-        'email. Audio/video files, sentence-splitting results, and study progress you create are stored only on '
-        'your device and are never transmitted to our servers.',
+    '1. Information You Provide or Store',
+    'The Service does not offer account registration or login, and we do not collect personal information such as '
+        'your name, email address, or phone number for account purposes.\n\n'
+        'The following information you select or import for study is, in principle, processed only on your '
+        'device:\n'
+        '- Audio and video files you select or import\n'
+        '- Results of processing those files (e.g., sentence splitting)\n'
+        '- Study progress and study history\n'
+        '- App settings\n\n'
+        'This information is never uploaded to or stored on our servers, and we cannot directly access this '
+        'content.\n\n'
+        'However, third-party SDKs and platform services used to provide the Service may separately process the '
+        'information described below.',
   ),
   (
-    '2. Automatically Collected Information',
-    'The Service itself does not use any analytics tool. On screens where ads are shown, ad providers may process '
-        'device identifiers (e.g., Android Advertising ID, IDFA) under their own privacy policies.',
+    '2. Information Ad Services May Process',
+    'The free version of the Service may display ads, which may use third-party ad services such as Google '
+        'AdMob.\n\n'
+        'In the course of providing ads, the ad provider may automatically process the following information:\n'
+        '- IP address\n'
+        '- Advertising identifiers (e.g., Android Advertising ID) and other device or app identifiers\n'
+        '- App launches, ad impressions/clicks, and other interactions with the Service and ads\n'
+        '- Diagnostic information such as app and ad SDK errors and performance\n'
+        '- Other information necessary for ad delivery, ad performance measurement, and fraud prevention\n\n'
+        'The specific handling of this information is governed by the relevant ad provider\'s own privacy '
+        'policy.\n\n'
+        'We do not provide the audio/video files you import for study, or their contents, to ad providers.',
   ),
   (
     '3. In-App Purchase Information',
-    'Payment for "Remove Ads" is processed directly by Apple/Google; we never have access to your card details. '
-        'We only retain whether the purchase was completed (yes/no).',
+    'The Service may offer an in-app purchase to remove ads.\n\n'
+        'Payment and payment-method information is processed directly by the app marketplace operator (e.g., '
+        'Google Play); we never access your card or account details.\n\n'
+        'The Service may process product information and purchase status provided by the app marketplace as '
+        'needed to verify purchases and provide purchase features.\n\n'
+        'Unless otherwise stated, we do not separately store this purchase information on our own servers.',
   ),
   (
-    '4. Data Retention and Deletion',
-    'All study data lives only on your device. Deleting the app or using the in-app delete feature permanently '
-        'removes that data immediately — we keep no separate copy.',
+    '4. Purpose of Use',
+    'Information processed by the Service is used for the following purposes:\n'
+        '- Providing language-learning features using audio/video files\n'
+        '- Saving study progress and user settings\n'
+        '- Serving ads and measuring ad performance\n'
+        '- Verifying in-app purchases and providing the ad-removal feature\n'
+        '- Maintaining service stability and preventing fraudulent use\n\n'
+        'We do not use your audio/video content for advertising, marketing, or separate content production '
+        'purposes.',
   ),
   (
-    '5. Third-Party Sharing',
-    'We do not sell or share your information with third parties. Third-party services essential to running the '
-        'app (ad SDKs, store billing) may separately process information under their own privacy policies.',
+    '5. Retention and Deletion',
+    'Audio/video files, processing results, and study history you use in the Service are, in principle, stored '
+        'only on your device.\n\n'
+        'You can delete this data using the delete feature provided in the app.\n\n'
+        'Deleting the app or resetting your device may delete data stored on the device; we keep no separate '
+        'copy, so it cannot be recovered.\n\n'
+        'Retention and deletion of information processed by ad providers or the app marketplace operator are '
+        'governed by their own policies.',
   ),
   (
-    '6. Children\'s Privacy',
-    'The Service is not directed at children under 14 and does not knowingly collect personal information from '
-        'children, since it does not collect personal identifiers from anyone.',
+    '6. Use of Third-Party Services',
+    'The Service may use the following external services:\n\n'
+        'Google AdMob\n'
+        '- Purpose: ad delivery, ad performance measurement, fraud prevention\n'
+        '- Information that may be processed: IP address, advertising/device identifiers, app interaction '
+        'information, diagnostics, etc.\n\n'
+        'Google Play\n'
+        '- Purpose: app distribution and in-app purchase processing\n'
+        '- Information that may be processed: information necessary for purchases and transactions\n\n'
+        'Each external provider may process information under its own privacy policy and related terms.\n\n'
+        'We do not provide the audio/video files you import for study, or their contents, to the providers above.',
   ),
   (
-    '7. Your Rights',
-    'Because the Service stores no personal data on any server, you can fully delete all your data at any time '
-        'via the in-app delete feature or by uninstalling the app — no separate access/correction/deletion request '
-        'is needed.',
+    '7. Your Rights and Control Over Information',
+    'Because the Service\'s core study data is stored on your device, you can manage it directly via the in-app '
+        'delete feature and similar controls.\n\n'
+        'If we do not retain your study data on a separate server, we are unable to directly view, modify, or '
+        'delete that data ourselves.\n\n'
+        'Information processed by third-party services, such as advertising identifiers, can be managed through '
+        'your device\'s privacy/ad settings or methods provided by the relevant service provider.',
   ),
-  ('8. Changes to This Policy', 'Any changes will be announced via an in-app notice or update.'),
-  ('9. Contact', 'For privacy questions, contact $_placeholderEmailEn.'),
+  (
+    '8. Children\'s Privacy',
+    'The Service does not provide account registration or login features intended to separately collect personal '
+        'information from children under 14.\n\n'
+        'We do not knowingly collect personal identifiers such as name or contact information from children under '
+        '14.\n\n'
+        'Where applicable law or an app marketplace\'s child/family policy applies based on the Service\'s '
+        'intended audience and ad delivery methods, we take the measures required by that policy.',
+  ),
+  (
+    '9. Security of Information',
+    'As a matter of principle, we process your audio/video files and core study data on your device rather than '
+        'transmitting them to our servers.\n\n'
+        'Where information is transmitted through a third-party service, that provider\'s own security and '
+        'privacy policies apply.',
+  ),
+  (
+    '10. Privacy Contact',
+    'Privacy-related inquiries can be directed to the contact below.\n\n'
+        'Service name: ShadowingLab\n'
+        'Developer/Business: $_placeholderCompanyEn\n'
+        'Privacy contact: $_placeholderContactEn\n'
+        'Email: $_placeholderEmailEn',
+  ),
+  (
+    '11. Changes to This Policy',
+    'If the content of this Privacy Policy changes, we will announce the changes via an in-app notice, app '
+        'update, or other appropriate method provided by the Service.\n\n'
+        'For material changes, we will provide advance notice in the manner required by applicable law.',
+  ),
   ('Effective Date', _placeholderDateEn),
 ];
 
@@ -314,46 +441,97 @@ final _termsJa = <LegalSection>[
 final _privacyJa = <LegalSection>[
   (
     '概要',
-    'シャドーイングラボ（以下「本サービス」）は利用者のプライバシーを重視し、関連法令を遵守します。本プライバシー '
-        'ポリシーは、本サービスがどのような情報をどのように処理するかを説明します。',
+    'シャドーイングラボ（以下「本サービス」）は利用者のプライバシーを重視し、「個人情報保護法」等関連法令を遵守します。\n\n'
+        '本プライバシーポリシーは、本サービスの利用過程で処理される情報の種類、利用目的、保管および削除方法等について説明します。',
   ),
   (
-    '1. 収集する情報',
-    '本サービスには会員登録・ログイン機能がなく、氏名・メールアドレスなどの個人識別情報を収集しません。利用者が '
-        'アップロードする音声/動画ファイル、文分割結果、学習進捗はすべて利用者の端末内にのみ保存され、当社のサーバーには '
-        '送信されません。',
+    '1. 利用者が入力・保存する情報',
+    '本サービスは会員登録またはログイン機能を提供しておらず、当社は会員登録を目的として氏名、メールアドレス、電話番号等の個人情報を収集しません。\n\n'
+        '利用者が学習のために選択・読み込む以下の情報は、原則として利用者の端末内でのみ処理されます。\n'
+        '- 利用者が選択・読み込んだ音声および動画ファイル\n'
+        '- 音声・動画ファイルの文分割等の処理結果\n'
+        '- 学習進捗状況および学習記録\n'
+        '- アプリ設定情報\n\n'
+        '上記情報は当社のサーバーにアップロードまたは保存されず、当社は当該コンテンツに直接アクセスできません。\n\n'
+        'ただし、本サービスの提供過程で利用される第三者SDKおよびプラットフォームサービスは、以下で説明する情報を別途処理する場合があります。',
   ),
   (
-    '2. 自動的に収集される情報',
-    '本サービス自体は解析（アナリティクス）ツールを使用しません。ただし広告が表示される画面では、広告提供事業者が '
-        '広告識別子（例：Android Advertising ID、IDFA）などの端末識別情報を自社ポリシーに基づき処理する場合があります。',
+    '2. 広告サービスにより処理される可能性がある情報',
+    '無料版の本サービスには広告が表示される場合があり、これにはGoogle AdMob等の第三者広告サービスが使用される場合があります。\n\n'
+        '広告サービスの提供過程で、広告提供事業者は次のような情報を自動的に処理する場合があります。\n'
+        '- IPアドレス\n'
+        '- 広告識別子（Android Advertising ID等）およびその他の端末またはアプリ識別子\n'
+        '- アプリ起動、広告表示・クリック等、本サービスおよび広告との相互作用情報\n'
+        '- アプリおよび広告SDKのエラー、パフォーマンス等の診断情報\n'
+        '- その他広告提供、広告効果測定および不正利用防止に必要な情報\n\n'
+        'これらの情報の具体的な処理方法は、当該広告サービス提供事業者のプライバシーポリシーおよびポリシーに従います。\n\n'
+        '当社は、利用者が学習のために読み込んだ音声・動画ファイルまたはその内容を広告提供事業者に提供しません。',
   ),
   (
-    '3. アプリ内課金情報',
-    '「広告削除」購入時の決済情報はApple/Googleなど各プラットフォームが直接処理し、当社はカード番号などの決済手段 '
-        '情報にアクセスしません。当社が保持する情報は購入完了の有無（はい/いいえ）のみです。',
+    '3. アプリ内課金に関する情報',
+    '本サービスは広告削除等のためのアプリ内課金機能を提供する場合があります。\n\n'
+        '決済および決済手段情報はGoogle Play等アプリマーケット事業者が直接処理し、当社は利用者のカード番号、口座番号等の決済手段情報にアクセスしません。\n\n'
+        '本サービスは購入確認および購入機能提供のため、アプリマーケットが提供する商品情報、購入状態等必要な情報を処理する場合があります。\n\n'
+        '別途案内がない限り、当社はこれらの購入情報を自社サーバーに別途保存しません。',
   ),
   (
-    '4. 情報の保管および削除',
-    'すべての学習データは利用者の端末にのみ保存されます。アプリを削除するかアプリ内削除機能を使用すると、当該データは '
-        '直ちに完全に削除され、当社が別途保管する複製はありません。',
+    '4. 情報の利用目的',
+    '本サービスで処理される情報は次の目的で使用されます。\n'
+        '- 音声・動画ファイルを利用した語学学習機能の提供\n'
+        '- 学習進捗状況および利用者設定の保存\n'
+        '- 広告提供および広告効果測定\n'
+        '- アプリ内課金の確認および広告削除機能の提供\n'
+        '- サービスの安定性確保および不正利用防止\n\n'
+        '当社は利用者の音声・動画コンテンツを広告、マーケティングまたは別途のコンテンツ制作目的で利用しません。',
   ),
   (
-    '5. 第三者への提供',
-    '当社は利用者の情報を第三者に販売または提供しません。ただし、広告SDKやストア決済システムなどサービス運営に '
-        '不可欠な第三者サービスは、各自のプライバシーポリシーに従い別途情報を処理する場合があります。',
+    '5. 情報の保管および削除',
+    '利用者が本サービスで使用する音声・動画ファイル、処理結果および学習記録は、原則として利用者の端末にのみ保存されます。\n\n'
+        '利用者はアプリが提供する削除機能を通じて当該データを削除できます。\n\n'
+        'アプリを削除するか端末を初期化する場合、端末に保存されたデータが削除される場合があり、当社は当該情報の別途複製を保有しないため、これを復元することはできません。\n\n'
+        '広告提供事業者またはアプリマーケット事業者が処理する情報の保管および削除については、当該事業者のポリシーが適用されます。',
   ),
   (
-    '6. 児童のプライバシー',
-    '本サービスは満14歳未満の児童を主な対象としておらず、個人識別情報自体を収集しないため、児童から個人情報を '
-        '意図的に収集することはありません。',
+    '6. 第三者サービスの利用',
+    '本サービスは次のような外部サービスを利用する場合があります。\n\n'
+        'Google AdMob\n'
+        '- 目的：広告提供、広告効果測定および不正利用防止\n'
+        '- 処理される可能性がある情報：IPアドレス、広告・端末識別子、アプリ相互作用情報、診断情報等\n\n'
+        'Google Play\n'
+        '- 目的：アプリ配信およびアプリ内課金処理\n'
+        '- 処理される可能性がある情報：購入および取引に必要な情報\n\n'
+        '各外部サービス事業者は自社のプライバシーポリシーおよび関連ポリシーに従い情報を処理する場合があります。\n\n'
+        '当社は、利用者が学習のために読み込んだ音声・動画ファイルまたはその内容を上記事業者に提供しません。',
   ),
   (
-    '7. 利用者の権利',
-    '本サービスはサーバーに個人情報を保存しないため、別途の閲覧・訂正・削除請求なしに、利用者はアプリ内削除機能や '
-        'アプリ削除によりいつでも自身の全データを完全に削除できます。',
+    '7. 利用者の権利および情報管理',
+    '本サービスの主要な学習データは利用者の端末に保存されるため、利用者はアプリ内削除機能等を通じて直接データを管理できます。\n\n'
+        '当社が別途サーバーに利用者の学習データを保管しない場合、当社は当該データを直接閲覧、修正または削除することはできません。\n\n'
+        '広告識別子等、第三者サービスが処理する情報は、端末のプライバシーまたは広告設定および当該サービス提供事業者が提供する方法を通じて管理できます。',
   ),
-  ('8. プライバシーポリシーの変更', '本ポリシーが変更される場合、アプリ内告知またはアップデートにより案内します。'),
-  ('9. お問い合わせ', '個人情報に関するお問い合わせは$_placeholderEmailJaまでご連絡ください。'),
+  (
+    '8. 児童のプライバシー',
+    '本サービスは満14歳未満の児童の個人情報を別途収集するための会員登録またはアカウント機能を提供しません。\n\n'
+        '当社は満14歳未満の児童から氏名、連絡先等の個人識別情報を意図的に収集しません。\n\n'
+        'ただし、本サービスの利用対象および広告提供方式により関連法令やアプリマーケットの児童・家族関連ポリシーが適用される場合、当該ポリシーに必要な措置を適用します。',
+  ),
+  (
+    '9. 情報の安全性',
+    '当社は利用者の音声・動画ファイルおよび主要な学習データを当社サーバーに送信せず、利用者の端末内で処理することを原則とします。\n\n'
+        '第三者サービスを通じて情報が送信される場合、当該サービス提供事業者のセキュリティおよびプライバシー保護ポリシーが適用されます。',
+  ),
+  (
+    '10. 個人情報保護に関するお問い合わせ',
+    '個人情報保護に関するお問い合わせは以下の連絡先までご連絡ください。\n\n'
+        'サービス名：シャドーイングラボ\n'
+        '開発者/事業者：$_placeholderCompanyJa\n'
+        '個人情報保護担当：$_placeholderContactJa\n'
+        'メール：$_placeholderEmailJa',
+  ),
+  (
+    '11. プライバシーポリシーの変更',
+    '本プライバシーポリシーの内容が変更される場合、アプリ内告知、アプリアップデートまたは本サービスが提供するその他適切な方法を通じて変更内容を案内します。\n\n'
+        '重要な変更がある場合、関連法令が要求する方式に従い事前に案内します。',
+  ),
   ('施行日', _placeholderDateJa),
 ];
