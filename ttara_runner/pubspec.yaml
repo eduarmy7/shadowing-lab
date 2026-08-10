@@ -90,6 +90,7 @@ flutter:
   # 실제 배포 전 반드시 라이선스가 명확한(CC0 등) 짧은 영어 발화 샘플로 교체할 것.
   assets:
     - assets/sample/
+    - assets/branding/
 
   # Pretendard Variable 폰트는 라이선스 파일 배치가 필요해 이번 스캐폴드에는 포함하지 않음.
   # assets/fonts/ 에 Pretendard-*.otf 배치 후 아래 주석을 해제하면 즉시 적용됨.

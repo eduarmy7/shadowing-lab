@@ -9,9 +9,9 @@ import '../providers/repository_providers.dart';
 /// go_router의 StatefulShellRoute.indexedStack과 결합해 탭별 스택을 독립 유지한다.
 /// 2026-08-08: 라이브러리(PRO 구독 뉴스) 탭은 별도 앱으로 분리되며 이 앱에서 제거됨.
 ///
-/// 광고 SDK 배치: 배너 슬롯을 이 레벨에서 공통 관리한다. 단, 01_ux_design.md 와이어프레임상
-/// 배너가 실제로 노출되는 곳은 홈 탭(#1)뿐이므로 인덱스 0에서만 렌더링한다 —
-/// 학습 화면(#5)은 이 셸 바깥의 풀스크린 라우트라 애초에 광고 SDK 호출 자체가 없다.
+/// 광고 SDK 배치: 배너 슬롯을 이 레벨에서 공통 관리한다. 홈 탭(#1)에서는 인덱스
+/// 0에서만 렌더링한다 — 학습 화면(#5)은 이 셸 바깥의 풀스크린 라우트라 이 위젯과는
+/// 별개로 자체적으로 배너를 띄운다(`shadowing_screen.dart`, 2026-08-10 추가).
 /// "광고 제거" 구매(#4)를 마친 사용자에게는 인덱스와 무관하게 배너를 아예 렌더링하지 않는다.
 class TabScaffold extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;

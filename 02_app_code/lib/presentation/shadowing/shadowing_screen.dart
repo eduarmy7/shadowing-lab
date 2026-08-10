@@ -12,6 +12,7 @@ import '../common_widgets/circle_icon_button.dart';
 import '../common_widgets/repeat_dot_indicator.dart';
 import '../common_widgets/sentence_card.dart';
 import '../common_widgets/waveform_player.dart';
+import '../providers/purchase_providers.dart';
 import '../providers/repository_providers.dart';
 import 'shadowing_controller.dart';
 import 'shadowing_options_sheet.dart';
@@ -59,6 +60,13 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     final theme = Theme.of(context);
     final semantic = theme.extension<AppSemanticColors>()!;
     final l10n = AppLocalizations.of(context)!;
+    // 2026-08-10: 사용자 요청으로 학습 화면(#5)의 재생 버튼 바로 위에도 배너를
+    // 넣는다 — 예전엔 "Hands-free 루프를 끊는다"는 이유로 이 화면 안에서는 광고를
+    // 아예 안 넣기로 했었지만(재생 버튼 자체를 가리지 않는 위치라 그 우려는 적용되지
+    // 않는다는 판단), 이번 결정으로 대체한다. "광고 제거" 구매 사용자에게는 다른
+    // 화면과 동일하게 숨긴다.
+    final adService = ref.watch(adServiceProvider);
+    final adsRemoved = ref.watch(adsRemovedProvider).maybeWhen(data: (v) => v, orElse: () => false);
 
     ref.listen(shadowingControllerProvider(widget.mediaId), (prev, next) async {
       if (next.error != null && next.error != prev?.error) {
@@ -178,6 +186,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                             onEditSentence: (i) => _openEditor(context, controller, i),
                           ),
                         ),
+                        if (!adsRemoved) adService.bannerAdWidget(context),
                         _ListModePlayBar(
                           mediaId: widget.mediaId,
                           segment: segment,
@@ -251,6 +260,8 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                             allDone: state.phase == ShadowingPhase.sentenceComplete,
                           ),
                           const SizedBox(height: AppSpacing.xl),
+                          if (!adsRemoved) adService.bannerAdWidget(context),
+                          const SizedBox(height: AppSpacing.md),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -412,16 +423,16 @@ class _SentenceListViewState extends State<_SentenceListView> {
     _scrollController.jumpTo(target);
   }
 
-  void _scrollToCurrentIfOffscreen() {
+  /// [attempt]는 무한 루프 방지용 상한 — 실제로는 보통 1~2번 안에 수렴한다.
+  void _scrollToCurrentIfOffscreen({int attempt = 0}) {
     if (!_scrollController.hasClients) return;
     final listPos = _visibleIndices.indexOf(widget.currentIndex);
     if (listPos < 0) return; // 깃발 필터링으로 지금 화면에 아예 없음 — 스크롤할 대상이 없다.
 
-    // 2026-08-10: 재생 자동진행은 한 번에 한 문장씩만 움직이므로, 목표 행은 거의
-    // 항상 이미 빌드돼 있거나(화면 안) 뷰포트 바로 밖의 캐시 범위 안에 있다 — 이럴 땐
-    // `_estimatedItemExtent` 추정치 대신 실제 렌더된 행의 `GlobalKey`로 정확히
-    // 스크롤한다(자막 있는 영상 콘텐츠처럼 행 높이가 짧고 균일하면, 72dp 추정치가
-    // 누적 오차를 일으켜 목표 문장을 오히려 화면 밖으로 밀어내는 문제가 있었다).
+    // 목표 행이 이미 빌드돼 있으면(화면 안이거나 뷰포트 바로 밖 캐시 범위) 실제
+    // 렌더된 위치로 정확히 스크롤한다 — `_estimatedItemExtent` 추정치를 아예
+    // 쓰지 않으므로 오차가 없다. 재생 자동진행처럼 한 번에 한 문장씩만 움직이는
+    // 경우 거의 항상 이 경로를 탄다.
     final key = _rowKeys[widget.currentIndex];
     final rowContext = key?.currentContext;
     if (rowContext != null) {
@@ -434,17 +445,57 @@ class _SentenceListViewState extends State<_SentenceListView> {
       return;
     }
 
-    // 행이 아직 빌드되지 않은 먼 위치로 건너뛴 경우(예: 목록 필터 변경 직후)에 대한
-    // 방어적 대체 경로 — [_jumpToCurrent]와 같은 추정 방식.
+    // 2026-08-10 추가 수정: 재시도마다 `animateTo`(250ms 애니메이션)를 쓰면, 이
+    // 앵커 보정이 여러 번 필요한 먼 거리(예: 목록 맨 위 근처에서 500번대로 점프)일 때
+    // 실사용 테스트에서 완전히 정확한 위치로 자리잡기까지 체감상 4~6초나 걸렸다 —
+    // 사용자가 "안 됐다"고 오해할 만큼 느렸다. 탐색 단계에서는 애니메이션 없이
+    // 즉시(`jumpTo`) 이동해 한 프레임 만에 다음 보정으로 넘어가고, 재시도 횟수도
+    // 늘린다 — 마지막으로 실제 행을 찾았을 때(위 `ensureVisible`)만 부드럽게 움직인다.
+    if (attempt >= 8) return; // 그래도 못 찾으면 마지막 추정 위치에 만족하고 멈춘다.
+
+    // 2026-08-10 버그 수정: 목표 행이 아직 안 빌드된 먼 위치로 건너뛴 경우(예: 한
+    // 문장씩 보기에서 한꺼번에 보기로 전환하며 목록 깊숙한 위치로 들어갈 때) —
+    // 사용자 실측 재현: 242번 문장이 현재인데 목록은 206~218번을 보여주는 등, 아예
+    // 엉뚱한 위치로 스크롤됐다. `_estimatedItemExtent`(72dp)가 이 콘텐츠(짧은 한 줄
+    // 자막)의 실제 행 높이보다 커서, 인덱스 0부터 그 오차를 누적시키면 먼 인덱스일수록
+    // 목표를 훨씬 지나쳐버렸던 것이 원인 — 최초 진입([_jumpToCurrent])도 같은 함정이라
+    // initState의 2차 보정이 애초에 크게 어긋난 위치에서 시작해 GlobalKey를 못 찾았다.
+    // 고침: 인덱스 0부터 추정하는 대신, **지금 실제로 빌드된 행 중 목표에 가장 가까운
+    // 것**을 기준점 삼아 그로부터의 짧은 거리만 추정한다 — 기준점의 실제 렌더 위치는
+    // 100% 정확하므로, 남은 오차는 기준점~목표 사이 거리에 비례해 훨씬 작다. 이 보정
+    // 후에도 못 찾으면(기준점이 너무 멀었다면) 한 번 더 재귀적으로 다시 시도한다.
+    final scrollableBox = context.findRenderObject() as RenderBox?;
+    int? anchorIndex;
+    double? anchorAbsoluteOffset; // 스크롤 오프셋 0 기준, 그 행의 top 위치.
+    if (scrollableBox != null && scrollableBox.attached) {
+      for (final entry in _rowKeys.entries) {
+        final ctx = entry.value.currentContext;
+        if (ctx == null) continue;
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box == null || !box.attached) continue;
+        final dy = box.localToGlobal(Offset.zero, ancestor: scrollableBox).dy;
+        if (anchorIndex == null || (entry.key - widget.currentIndex).abs() < (anchorIndex - widget.currentIndex).abs()) {
+          anchorIndex = entry.key;
+          anchorAbsoluteOffset = dy + _scrollController.offset;
+        }
+      }
+    }
+
     final viewport = _scrollController.position.viewportDimension;
-    final itemTop = listPos * _estimatedItemExtent;
-    final target =
-        (itemTop - viewport / 3).clamp(0.0, _scrollController.position.maxScrollExtent);
-    _scrollController.animateTo(
-      target,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+    double target;
+    if (anchorIndex != null && anchorAbsoluteOffset != null) {
+      final anchorListPos = _visibleIndices.indexOf(anchorIndex);
+      target = anchorAbsoluteOffset + (listPos - anchorListPos) * _estimatedItemExtent - viewport / 3;
+    } else {
+      // 화면에 빌드된 행이 하나도 없는 극단적 상황(있을 수 없지만 방어적으로) — 옛 방식.
+      target = listPos * _estimatedItemExtent - viewport / 3;
+    }
+    target = target.clamp(0.0, _scrollController.position.maxScrollExtent);
+
+    _scrollController.jumpTo(target);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scrollToCurrentIfOffscreen(attempt: attempt + 1);
+    });
   }
 
   @override

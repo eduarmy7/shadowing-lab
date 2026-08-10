@@ -27,7 +27,19 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.appName),
+        // 2026-08-10: 제목 글자 왼쪽에 앱 아이콘을 나란히 배치 — 사용자 요청대로
+        // 텍스트(헤드라인, 24sp) 대비 1.5배 크기(36)로 살짝 더 도드라지게 한다.
+        // 소스는 Android 런처 아이콘(`android/.../mipmap-xxxhdpi/ic_launcher.png`)을
+        // 그대로 복사한 것 — 이 프로젝트의 "진짜" 브랜드 아이콘이 그 mipmap에만
+        // 있고 별도 Flutter 에셋이 없었어서 `assets/branding/`에 새로 추가했다.
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/branding/app_icon.png', width: 36, height: 36),
+            const SizedBox(width: AppSpacing.sm),
+            Text(l10n.appName),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
