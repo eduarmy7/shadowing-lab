@@ -354,13 +354,40 @@ class _SentenceListViewState extends State<_SentenceListView> {
   final _scrollController = ScrollController();
   // 행 내용(패딩 포함) + separator 간격의 대략적인 합 — 자막 없는 문장(번호만, 고정
   // 높이)과 자막 있는 문장(1~2줄 텍스트)의 평균적인 실측 높이에 맞춘 추정치다.
-  // 목표가 "정확히 그 문장 위"가 아니라 "그 근처로 이동"이라 오차는 감수한다.
+  // 목표가 "정확히 그 문장 위"가 아니라 "그 근처로 이동"이라 오차는 감수한다 —
+  // 그 오차는 아래 [_scrollToCurrentIfOffscreen]의 GlobalKey 기반 정밀 보정으로 메운다.
   static const _estimatedItemExtent = 72.0;
+
+  // 2026-08-10: 각 행의 실제 렌더 위치를 알아내기 위한 키 — [_scrollToCurrentIfOffscreen]
+  // 참고. 절대 인덱스([SentenceSegment.index])로 관리해 깃발 필터로 화면상 위치(listPos)가
+  // 바뀌어도 키가 안정적으로 유지된다.
+  final Map<int, GlobalKey> _rowKeys = {};
+
+  GlobalKey _keyFor(int absoluteIndex) => _rowKeys.putIfAbsent(absoluteIndex, () => GlobalKey());
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToCurrent());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _jumpToCurrent();
+      // 추정치 점프는 근사치일 뿐이라 어긋날 수 있다 — 점프로 근처 행들이 실제로
+      // 빌드된 다음 프레임에, 정확한 위치로 한 번 더 보정한다.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentIfOffscreen());
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _SentenceListView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 2026-08-10: 한꺼번에 보기 재생([ShadowingController.playListFromCurrent])이
+    // 문장을 자동으로 넘기다가 지금 화면에 보이는 범위를 벗어나면, 재생 중인 문장이
+    // 화면 밖으로 사라져 사용자가 어디를 듣고 있는지 놓쳤다(사용자 보고: "화면에
+    // 보이는 문장보다 더 많이 학습하면 학습하고 있는 문장이 안 보이네"). currentIndex가
+    // 바뀔 때마다 이미 화면 안이면 그대로 두고, 화면 밖으로 나갔을 때만 스크롤한다 —
+    // 사용자가 다른 문장을 손으로 보고 있는데 매번 강제로 튕기면 오히려 방해된다.
+    if (widget.currentIndex != oldWidget.currentIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentIfOffscreen());
+    }
   }
 
   @override
@@ -383,6 +410,41 @@ class _SentenceListViewState extends State<_SentenceListView> {
     final target =
         (listPos * _estimatedItemExtent - viewport / 3).clamp(0.0, _scrollController.position.maxScrollExtent);
     _scrollController.jumpTo(target);
+  }
+
+  void _scrollToCurrentIfOffscreen() {
+    if (!_scrollController.hasClients) return;
+    final listPos = _visibleIndices.indexOf(widget.currentIndex);
+    if (listPos < 0) return; // 깃발 필터링으로 지금 화면에 아예 없음 — 스크롤할 대상이 없다.
+
+    // 2026-08-10: 재생 자동진행은 한 번에 한 문장씩만 움직이므로, 목표 행은 거의
+    // 항상 이미 빌드돼 있거나(화면 안) 뷰포트 바로 밖의 캐시 범위 안에 있다 — 이럴 땐
+    // `_estimatedItemExtent` 추정치 대신 실제 렌더된 행의 `GlobalKey`로 정확히
+    // 스크롤한다(자막 있는 영상 콘텐츠처럼 행 높이가 짧고 균일하면, 72dp 추정치가
+    // 누적 오차를 일으켜 목표 문장을 오히려 화면 밖으로 밀어내는 문제가 있었다).
+    final key = _rowKeys[widget.currentIndex];
+    final rowContext = key?.currentContext;
+    if (rowContext != null) {
+      Scrollable.ensureVisible(
+        rowContext,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        alignment: 0.3, // 화면 위쪽에서 1/3 지점 — _jumpToCurrent와 동일한 위치 감각.
+      );
+      return;
+    }
+
+    // 행이 아직 빌드되지 않은 먼 위치로 건너뛴 경우(예: 목록 필터 변경 직후)에 대한
+    // 방어적 대체 경로 — [_jumpToCurrent]와 같은 추정 방식.
+    final viewport = _scrollController.position.viewportDimension;
+    final itemTop = listPos * _estimatedItemExtent;
+    final target =
+        (itemTop - viewport / 3).clamp(0.0, _scrollController.position.maxScrollExtent);
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -414,6 +476,7 @@ class _SentenceListViewState extends State<_SentenceListView> {
         final isCurrent = i == widget.currentIndex;
         final isDone = widget.completedIndices.contains(i);
         return Material(
+          key: _keyFor(i),
           color: isCurrent ? theme.colorScheme.primaryContainer : theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
           child: InkWell(
