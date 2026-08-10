@@ -362,12 +362,25 @@ class _SentenceListView extends StatefulWidget {
 /// 손으로 미세 조정하게 한다 — 스크롤 가능한 위치 지정 패키지 없이 표준적으로 쓰는
 /// 방식이다.
 class _SentenceListViewState extends State<_SentenceListView> {
-  final _scrollController = ScrollController();
   // 행 내용(패딩 포함) + separator 간격의 대략적인 합 — 자막 없는 문장(번호만, 고정
   // 높이)과 자막 있는 문장(1~2줄 텍스트)의 평균적인 실측 높이에 맞춘 추정치다.
   // 목표가 "정확히 그 문장 위"가 아니라 "그 근처로 이동"이라 오차는 감수한다 —
   // 그 오차는 아래 [_scrollToCurrentIfOffscreen]의 GlobalKey 기반 정밀 보정으로 메운다.
   static const _estimatedItemExtent = 72.0;
+
+  // 2026-08-10 버그 수정: `ScrollController()`를 오프셋 0으로 만든 뒤 postFrame에서
+  // 점프하면, 그 사이 첫 프레임이 무조건 맨 위(1번 문장)로 한 번 그려진다 — 사용자가
+  // 직접 지적함("1번으로 갔다가 246으로 오네, 불필요한 경로"). 대신 스크롤 컨트롤러
+  // 생성 시점에 이미 추정 위치로 `initialScrollOffset`을 지정해, 1번 문장이 화면에
+  // 단 한 프레임도 그려지지 않고 바로 목표 근처에서 시작하게 한다. 여전히 추정치라
+  // 정확하지 않을 수 있으니, 마운트 후 [_scrollToCurrentIfOffscreen]으로 한 번 더
+  // 정밀 보정한다 — 이번엔 시작점이 이미 목표 근처라 보정 폭이 작고 훨씬 빠르다.
+  late final ScrollController _scrollController = ScrollController(
+    initialScrollOffset: () {
+      final listPos = _visibleIndices.indexOf(widget.currentIndex);
+      return listPos > 0 ? listPos * _estimatedItemExtent : 0.0;
+    }(),
+  );
 
   // 2026-08-10: 각 행의 실제 렌더 위치를 알아내기 위한 키 — [_scrollToCurrentIfOffscreen]
   // 참고. 절대 인덱스([SentenceSegment.index])로 관리해 깃발 필터로 화면상 위치(listPos)가
@@ -379,12 +392,9 @@ class _SentenceListViewState extends State<_SentenceListView> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _jumpToCurrent();
-      // 추정치 점프는 근사치일 뿐이라 어긋날 수 있다 — 점프로 근처 행들이 실제로
-      // 빌드된 다음 프레임에, 정확한 위치로 한 번 더 보정한다.
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentIfOffscreen());
-    });
+    // initialScrollOffset은 뷰포트 크기를 몰라 "1/3 지점" 보정 없이 대략치로만
+    // 시작하므로, 마운트 후 한 번 더 정밀 보정한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentIfOffscreen());
   }
 
   @override
@@ -412,17 +422,6 @@ class _SentenceListViewState extends State<_SentenceListView> {
           if (!widget.filterFlaggedOnly || widget.segments[i].flaggedByUser) i,
       ];
 
-  void _jumpToCurrent() {
-    if (!_scrollController.hasClients) return;
-    final listPos = _visibleIndices.indexOf(widget.currentIndex);
-    if (listPos <= 0) return; // 목록 맨 앞 근처거나(0) 필터링으로 안 보이면 그대로 둔다.
-    final viewport = _scrollController.position.viewportDimension;
-    // 화면 맨 위 끝에 걸치지 않고 뷰포트 안쪽 1/3 지점쯤에 오도록 살짝 위로 당긴다.
-    final target =
-        (listPos * _estimatedItemExtent - viewport / 3).clamp(0.0, _scrollController.position.maxScrollExtent);
-    _scrollController.jumpTo(target);
-  }
-
   /// [attempt]는 무한 루프 방지용 상한 — 실제로는 보통 1~2번 안에 수렴한다.
   void _scrollToCurrentIfOffscreen({int attempt = 0}) {
     if (!_scrollController.hasClients) return;
@@ -440,7 +439,7 @@ class _SentenceListViewState extends State<_SentenceListView> {
         rowContext,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
-        alignment: 0.3, // 화면 위쪽에서 1/3 지점 — _jumpToCurrent와 동일한 위치 감각.
+        alignment: 0.3, // 화면 위쪽에서 1/3 지점.
       );
       return;
     }
@@ -458,8 +457,8 @@ class _SentenceListViewState extends State<_SentenceListView> {
     // 사용자 실측 재현: 242번 문장이 현재인데 목록은 206~218번을 보여주는 등, 아예
     // 엉뚱한 위치로 스크롤됐다. `_estimatedItemExtent`(72dp)가 이 콘텐츠(짧은 한 줄
     // 자막)의 실제 행 높이보다 커서, 인덱스 0부터 그 오차를 누적시키면 먼 인덱스일수록
-    // 목표를 훨씬 지나쳐버렸던 것이 원인 — 최초 진입([_jumpToCurrent])도 같은 함정이라
-    // initState의 2차 보정이 애초에 크게 어긋난 위치에서 시작해 GlobalKey를 못 찾았다.
+    // 목표를 훨씬 지나쳐버렸던 것이 원인 — 최초 진입(initialScrollOffset)도 같은 함정이라
+    // 2차 보정이 애초에 크게 어긋난 위치에서 시작해 GlobalKey를 못 찾았다.
     // 고침: 인덱스 0부터 추정하는 대신, **지금 실제로 빌드된 행 중 목표에 가장 가까운
     // 것**을 기준점 삼아 그로부터의 짧은 거리만 추정한다 — 기준점의 실제 렌더 위치는
     // 100% 정확하므로, 남은 오차는 기준점~목표 사이 거리에 비례해 훨씬 작다. 이 보정
