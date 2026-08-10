@@ -6,8 +6,14 @@ import 'package:just_audio/just_audio.dart';
 /// 얇은 서비스. WaveformPlayer 위젯과 ShadowingController가 공통으로 사용한다.
 ///
 /// 영상 파일도 오디오 트랙만 재생한다(화면엔 파형만 노출 — UX 문서 권장, 성능/배터리 이점).
-/// 백그라운드 재생은 main.dart의 JustAudioBackground.init()과 결합해 동작한다.
+/// 백그라운드 재생은 `core/audio/study_audio_handler.dart`(`audio_service` 기반)와
+/// 결합해 동작한다(2026-08-09부터 `just_audio_background`는 더 이상 쓰지 않는다).
 class AudioPlayerService {
+  // 2026-08-10: 코덱 스톨 감시 유예 시간 — [playSegmentOnce] 참고. positionStream이
+  // 보통 200~500ms 간격으로 오므로, 이보다 넉넉히 크게 잡아 정상적인 이벤트 간격을
+  // 스톨로 오인하지 않게 한다.
+  static const int _stallGraceMs = 1000;
+
   AudioPlayer _player = AudioPlayer();
   String? _currentSource;
   bool _currentSourceIsLocal = true;
@@ -127,8 +133,49 @@ class AudioPlayerService {
 
     final completer = Completer<void>();
     _activeCompleter = completer;
+
+    // **2026-08-06 추가, 2026-08-10 재설계 — 자동 복구.** 실기기에서 오래 쓸수록
+    // (수십~백여 문장 재생 후) 예외 없이 조용히 재생이 안 되는 현상이 재현됐다 —
+    // 로그에 에러가 전혀 안 남아서 Dart 쪽 버그(리스너/Future 누수 등)는 이미 여러
+    // 차례 고쳤지만, 그래도 남아있는 걸 보면 하드웨어 MP3 디코더(`c2.sec.mp3.decoder`)가
+    // 반복적인 seek/flush를 오래 버티다 가끔 내부 상태가 꼬이는 것으로 의심된다 —
+    // 코덱 자체 문제라면 Dart 레벨에서 "왜"를 완전히 고칠 수는 없다. 대신 고장을
+    // 감지하면 강제 리셋 후 예외를 던진다 — 그러면 이 메서드를 호출한 쪽
+    // (`ShadowingController._playWithRetry`)의 기존 1회 재시도 로직이 자동으로 다시
+    // 시도하는데, 이번엔 방금 강제로 새로 로드한 신선한 소스/플레이어 상태에서
+    // 재생하므로 실제로 복구될 가능성이 높다.
+    //
+    // 2026-08-07: 처음엔 "문장 길이×2+2.5초" 안에 안 끝나면 고장으로 봤다. 118분
+    // 실제 파일 테스트에서 이 감지+복구가 여러 차례 실제로 발동했고 매번 성공적으로
+    // 복구됐지만, 문장이 길수록(예: 5초 문장이면 최대 12.5초) 감지까지 오래 걸려
+    // 사용자 체감상 "몇 초씩 멈췄다 풀림"으로 느껴졌다.
+    //
+    // 2026-08-10: 사용자가 실제 영상 학습 중 이 "잠깐 멈춤"을 반복해서 겪고 나서,
+    // "문장이 얼마나 걸릴 것으로 예상되는가"라는 간접 추정 대신 "재생 위치가 실제로
+    // 전진하고 있는가"를 직접 감시하도록 바꿨다 — 코덱이 진짜로 멎으면 위치 갱신도
+    // 곧바로 멈추므로, 문장 길이와 무관하게 [_stallGraceMs]만큼만 기다리면 된다(짧은
+    // 문장이 오히려 예전 방식에서 더 불리했다 — 1초짜리 문장도 최소 2.5초는 기다려야
+    // 했다). positionStream이 실제로 앞으로 나아갈 때마다 감시 타이머를 다시 무장하고,
+    // 무장한 채로 시간이 다 되면 스톨로 간주한다. 문장 전체 길이 기준 타임아웃은
+    // "혹시 몰라"의 최후 안전망으로만 훨씬 넉넉하게 남겨둔다.
+    Timer? stallTimer;
+    int? lastProgressPosMs;
+    void armStallTimer() {
+      stallTimer?.cancel();
+      stallTimer = Timer(const Duration(milliseconds: _stallGraceMs), () {
+        if (!completer.isCompleted) {
+          completer.completeError(const _PlaybackStallException());
+        }
+      });
+    }
+
     _boundarySub = _player.positionStream.listen((pos) {
-      if (pos.inMilliseconds >= endMs) {
+      final posMs = pos.inMilliseconds;
+      if (lastProgressPosMs == null || posMs > lastProgressPosMs!) {
+        lastProgressPosMs = posMs;
+        armStallTimer(); // 실제로 위치가 전진했을 때만 감시 타이머를 다시 무장한다.
+      }
+      if (posMs >= endMs) {
         _player.pause();
         if (!completer.isCompleted) completer.complete();
       }
@@ -138,34 +185,24 @@ class AudioPlayerService {
       if (!completer.isCompleted) completer.complete();
     });
 
+    armStallTimer(); // play() 직후 첫 위치 이벤트가 도착할 때까지의 기동 유예.
     unawaited(_player.play());
 
-    // **2026-08-06 추가 — 자동 복구.** 실기기에서 오래 쓸수록(수십~백여 문장 재생 후)
-    // 예외 없이 조용히 재생이 안 되는 현상이 재현됐다 — 로그에 에러가 전혀 안 남아서
-    // Dart 쪽 버그(리스너/Future 누수 등)는 이미 여러 차례 고쳤지만, 그래도 남아있는
-    // 걸 보면 하드웨어 MP3 디코더(`c2.sec.mp3.decoder`)가 반복적인 seek/flush를
-    // 오래 버티다 가끔 내부 상태가 꼬이는 것으로 의심된다 — 코덱 자체 문제라면
-    // Dart 레벨에서 "왜"를 완전히 고칠 수는 없다. 대신 "예상 시간을 벗어나면 고장난
-    // 것으로 보고 강제 리셋 후 예외를 던진다" — 그러면 이 메서드를 호출한 쪽
-    // (`ShadowingController._playWithRetry`)의 기존 1회 재시도 로직이 자동으로 다시
-    // 시도하는데, 이번엔 방금 강제로 새로 로드한 신선한 소스/플레이어 상태에서
-    // 재생하므로 실제로 복구될 가능성이 높다.
-    //
-    // 2026-08-07: 118분 실제 파일 재생 테스트에서 이 감지+복구가 여러 차례 실제로
-    // 발동했고 매번 성공적으로 복구됐지만, 배율이 3배+4초라 감지까지 문장당 최대
-    // 7~16초씩 화면이 멈춘 것처럼 보였다(사용자 체감상 "몇 초 멈췄다 풀림"). 로컬
-    // 파일 재생은 네트워크 지연이 없어 정상 재생이면 훨씬 여유 있게 끝나므로, 배율을
-    // 줄여 고장 감지를 더 빠르게 해서 멈춤 체감 시간을 줄인다.
     final effectiveStartMs = seek ? startMs : _player.position.inMilliseconds;
     final expectedMs = (endMs - effectiveStartMs).clamp(200, 1 << 31);
     try {
-      await completer.future.timeout(Duration(milliseconds: expectedMs * 2 + 2500));
-    } on TimeoutException {
-      debugPrint('[AudioPlayerService] playSegmentOnce timed out (startMs=$startMs endMs=$endMs) '
+      // 스톨 감시가 대부분의 실제 고장을 훨씬 빠르게 잡아내므로, 이 전체 타임아웃은
+      // 최후의 안전망일 뿐이라 넉넉하게 잡는다.
+      await completer.future.timeout(Duration(milliseconds: expectedMs * 3 + 8000));
+    } catch (e) {
+      stallTimer?.cancel();
+      final reason = e is TimeoutException ? '전체 타임아웃' : '위치 정지(스톨) 감지';
+      debugPrint('[AudioPlayerService] playSegmentOnce 실패($reason, startMs=$startMs endMs=$endMs) '
           '— forcing a hard reset and surfacing as a failure so the caller retries.');
       await _hardReset();
       rethrow;
     }
+    stallTimer?.cancel();
   }
 
   /// 재생이 멎었을 때 코덱 상태를 초기화한다.
@@ -250,4 +287,13 @@ class AudioPlayerService {
     await _processingStateController.close();
     await _player.dispose();
   }
+}
+
+/// [AudioPlayerService.playSegmentOnce]가 "재생 위치가 멈춰 있다"고 판단했을 때
+/// 던지는 내부 신호용 예외 — 호출자는 다른 실패 사유와 구분할 필요 없이 그냥 실패로
+/// 처리하면 된다(catch(_) 하나로 충분).
+class _PlaybackStallException implements Exception {
+  const _PlaybackStallException();
+  @override
+  String toString() => '_PlaybackStallException: no position progress detected';
 }
