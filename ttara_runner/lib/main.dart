@@ -1,27 +1,45 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio_background/just_audio_background.dart';
+import 'core/audio/audio_player_service.dart';
+import 'core/audio/study_audio_handler.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_motion.dart';
 import 'core/theme/app_theme.dart';
 import 'domain/entities/learning_settings.dart';
 import 'l10n/gen/app_localizations.dart';
 import 'presentation/my/settings_screen.dart';
+import 'presentation/providers/repository_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppMotion.syncWithPlatform();
 
-  // 영상 파일도 오디오만 추출해 백그라운드 재생 — Hands-free 학습 중 화면 잠금에도
-  // 학습 루프가 끊기지 않게 한다(01_ux_design.md 앱 개발자 전달 사항).
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.ttara.app.audio',
-    androidNotificationChannelName: '쉐도잉랩 쉐도잉 재생',
-    androidNotificationOngoing: true,
+  // 2026-08-09: `just_audio_background`의 단순 미러링 대신 커스텀
+  // `StudyAudioHandler`를 직접 등록한다 — 잠금화면/알림의 재생·정지·이전·다음 버튼이
+  // 재생기를 직접 만지지 않고 학습 컨트롤러를 거치게 하기 위해서다
+  // (`core/audio/study_audio_handler.dart` 문서 참고). Hands-free 학습 중 화면
+  // 잠금에도 학습 루프가 끊기지 않아야 한다는 원 요구사항(01_ux_design.md)은 그대로
+  // 유지된다 — MainActivity가 여전히 audio_service의 AudioServiceFragmentActivity를
+  // 베이스로 쓴다.
+  final audioPlayerService = AudioPlayerService();
+  final audioHandler = await AudioService.init(
+    builder: () => StudyAudioHandler(audioPlayerService),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.ttara.app.audio',
+      androidNotificationChannelName: '쉐도잉랩 쉐도잉 재생',
+      androidNotificationOngoing: true,
+    ),
   );
 
-  runApp(const ProviderScope(child: TtaraApp()));
+  runApp(ProviderScope(
+    overrides: [
+      audioPlayerServiceProvider.overrideWithValue(audioPlayerService),
+      audioHandlerProvider.overrideWithValue(audioHandler),
+    ],
+    child: const TtaraApp(),
+  ));
 }
 
 class TtaraApp extends ConsumerWidget {

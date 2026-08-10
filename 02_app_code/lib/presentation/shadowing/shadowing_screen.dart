@@ -186,8 +186,12 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                           progressRatio: state.playbackProgressRatio,
                           completedRepeats: state.completedRepeats,
                           targetRepeats: state.targetRepeats,
+                          canGoPrevious: state.currentIndex > 0,
+                          canGoNext: state.currentIndex < state.segments.length - 1,
                           onPlay: controller.playListFromCurrent,
                           onStop: controller.stopListPlayback,
+                          onPrevious: controller.previousInList,
+                          onNext: controller.nextInList,
                         ),
                       ],
                     )
@@ -496,8 +500,12 @@ class _ListModePlayBar extends StatelessWidget {
   final double progressRatio;
   final int completedRepeats;
   final int targetRepeats;
+  final bool canGoPrevious;
+  final bool canGoNext;
   final VoidCallback onPlay;
   final VoidCallback onStop;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
 
   const _ListModePlayBar({
     required this.mediaId,
@@ -507,8 +515,12 @@ class _ListModePlayBar extends StatelessWidget {
     required this.progressRatio,
     required this.completedRepeats,
     required this.targetRepeats,
+    required this.canGoPrevious,
+    required this.canGoNext,
     required this.onPlay,
     required this.onStop,
+    required this.onPrevious,
+    required this.onNext,
   });
 
   @override
@@ -544,6 +556,13 @@ class _ListModePlayBar extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // 2026-08-09: 한 문장씩 보기와 마찬가지로 재생바 양옆에 이전/다음 문장
+              // 버튼을 뒀다 — 목록을 계속 스크롤하지 않고도 죽 이어 들을 수 있게.
+              IconButton(
+                icon: const Icon(Icons.skip_previous),
+                onPressed: canGoPrevious ? onPrevious : null,
+              ),
+              const SizedBox(width: AppSpacing.md),
               // 2026-08-06: 재생 시작을 기다리는 동안 스피너로 아이콘을 통째로 갈아치우던
               // 걸 없앴다 — 버튼 모양을 고정해서 렉처럼 보이지 않게 한다. `CircleIconButton`
               // 의 InkWell 리플이 "눌렀다"는 피드백을 대신 준다.
@@ -564,6 +583,11 @@ class _ListModePlayBar extends StatelessWidget {
                     : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                 onTap: isActive ? onStop : null,
                 semanticLabel: l10n.stopPlayback,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              IconButton(
+                icon: const Icon(Icons.skip_next),
+                onPressed: canGoNext ? onNext : null,
               ),
             ],
           ),

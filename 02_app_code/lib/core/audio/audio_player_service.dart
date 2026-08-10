@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart' as jab;
 
 /// [just_audio]를 감싸 "문장 구간(startMs~endMs) 재생"이라는 도메인 개념을 노출하는
 /// 얇은 서비스. WaveformPlayer 위젯과 ShadowingController가 공통으로 사용한다.
@@ -23,22 +22,36 @@ class AudioPlayerService {
   // 문제없지만, 그렇지 않은 장기 구독을 위해 안정적인 브로드캐스트 스트림 하나로
   // 감싸고, `_player`가 바뀔 때마다 내부적으로 다시 연결한다.
   final _positionController = StreamController<Duration>.broadcast();
+  final _playingController = StreamController<bool>.broadcast();
+  final _processingStateController = StreamController<ProcessingState>.broadcast();
   StreamSubscription<Duration>? _positionForwardSub;
+  StreamSubscription<bool>? _playingForwardSub;
+  StreamSubscription<ProcessingState>? _processingStateForwardSub;
 
   AudioPlayerService() {
-    _attachPositionForwarding();
+    _attachStreamForwarding();
   }
 
-  void _attachPositionForwarding() {
+  void _attachStreamForwarding() {
     _positionForwardSub?.cancel();
     _positionForwardSub = _player.positionStream.listen(_positionController.add);
+    _playingForwardSub?.cancel();
+    _playingForwardSub = _player.playingStream.listen(_playingController.add);
+    _processingStateForwardSub?.cancel();
+    _processingStateForwardSub = _player.processingStateStream.listen(_processingStateController.add);
   }
 
   Stream<Duration> get positionStream => _positionController.stream;
+  // 2026-08-09: StudyAudioHandler(알림 미니 플레이어)가 재생/일시정지 상태와 처리
+  // 상태를 앱 실행 내내 구독해야 해서, positionStream과 같은 이유로 이 둘도 안정적인
+  // 브로드캐스트로 감싼다.
+  Stream<bool> get playingStream => _playingController.stream;
+  Stream<ProcessingState> get processingStateStream => _processingStateController.stream;
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Duration get duration => _player.duration ?? Duration.zero;
   Duration get position => _player.position;
   bool get isPlaying => _player.playing;
+  ProcessingState get processingState => _player.processingState;
 
   /// asset:///-스킴 접두사 — 앱 번들(Flutter AssetBundle)에 포함된 오디오를 가리킨다.
   /// "샘플로 체험하기"(QA 🔴-3, `assets/sample/`) 및 라이브러리 목업 데이터가 사용한다.
@@ -56,28 +69,21 @@ class AudioPlayerService {
   /// 뒤에만 `_currentSource`를 갱신하고, 실패하면 null로 되돌려 다음 시도가 진짜로
   /// 다시 로딩하게 한다.
   ///
-  /// **2026-08-06 버그 수정 (2, 더 근본적인 원인)**: `main.dart`의
-  /// `JustAudioBackground.init()`이 앱 전역에 걸려 있어 **모든** `AudioSource`가
-  /// `just_audio_background`의 `MediaItem` 태그를 가지고 있어야 하는데(없으면
-  /// `Bad state: ... every AudioSource ...`), 이 서비스는 태그를 전혀 안 채우고
-  /// 있었다 — `silence_detector.dart`의 내부 프로브 플레이어는 이 세션 초반에 이미
-  /// 고쳤지만, 정작 사용자에게 보이는 **진짜 재생**을 담당하는 이 서비스는 그때
-  /// 놓쳤다. 그 결과 실기기에서 재생 시도가 매번 이 예외로 실패했고 — 위 (1)번
-  /// 버그와 겹쳐서 목록/한 문장 화면에서는 조용히 무한 버퍼링으로, 편집 화면에서는
-  /// (직접 `setSource`를 호출하는 경로라 매번 새로 시도됨) "미리듣기를 재생할 수
-  /// 없어요" 에러로 나타났다.
+  /// **2026-08-09**: `just_audio_background`를 커스텀 `StudyAudioHandler`(직접
+  /// `audio_service` 사용)로 교체하면서, `AudioSource`에 `just_audio_background`
+  /// 전용 `MediaItem` 태그를 채워야 했던 예전 제약이 사라졌다 — 알림에 표시할 제목/
+  /// 표지는 이제 `StudyAudioHandler.updateNowPlaying()`이 별도로 관리한다(재생 중인
+  /// 파일의 `AudioSource` 자체와는 무관).
   Future<void> setSource(String pathOrUrl, {required bool isLocal}) async {
     if (_currentSource == pathOrUrl) return;
 
     try {
-      final tag = jab.MediaItem(id: pathOrUrl, title: '쉐도잉랩');
       if (pathOrUrl.startsWith(_assetScheme)) {
         final assetPath = pathOrUrl.substring(_assetScheme.length);
-        await _player.setAudioSource(AudioSource.asset(assetPath, tag: tag));
+        await _player.setAudioSource(AudioSource.asset(assetPath));
       } else {
-        final source = isLocal
-            ? AudioSource.uri(Uri.file(pathOrUrl), tag: tag)
-            : AudioSource.uri(Uri.parse(pathOrUrl), tag: tag);
+        final source =
+            isLocal ? AudioSource.uri(Uri.file(pathOrUrl)) : AudioSource.uri(Uri.parse(pathOrUrl));
         await _player.setAudioSource(source);
       }
       _currentSource = pathOrUrl;
@@ -182,7 +188,7 @@ class AudioPlayerService {
     final isLocal = _currentSourceIsLocal;
     final oldPlayer = _player;
     _player = AudioPlayer();
-    _attachPositionForwarding();
+    _attachStreamForwarding();
     // 2026-08-07: dispose() 전에 stop()을 한 번 먼저 호출해 마지막 상태 이벤트를
     // 정리시킨다 — 118분 파일 테스트에서 stop() 없이 바로 dispose()했더니 just_audio
     // 내부 스트림에 아주 살짝 늦게 도착한 이벤트가 이미 close된 Subject에 부딪히며
@@ -237,7 +243,11 @@ class AudioPlayerService {
   Future<void> dispose() async {
     await _boundarySub?.cancel();
     await _positionForwardSub?.cancel();
+    await _playingForwardSub?.cancel();
+    await _processingStateForwardSub?.cancel();
     await _positionController.close();
+    await _playingController.close();
+    await _processingStateController.close();
     await _player.dispose();
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/ads/ad_service.dart';
 import '../../core/audio/audio_player_service.dart';
 import '../../core/audio/cover_art_extractor.dart';
+import '../../core/audio/study_audio_handler.dart';
 import '../../core/permissions/permission_service.dart';
 import '../../data/local/local_kv_store.dart';
 import '../../data/repositories/fake_purchase_repository.dart';
@@ -87,4 +88,13 @@ final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
   final service = AudioPlayerService();
   ref.onDispose(service.dispose);
   return service;
+});
+
+/// 2026-08-09 추가 — 잠금화면/알림 미니 플레이어(`StudyAudioHandler`). [audioPlayerServiceProvider]와
+/// 같은 재생기를 감싸는 앱 전역 싱글톤이라 `main.dart`에서 `AudioService.init()`으로
+/// 미리 만든 뒤 `ProviderScope.overrides`로 주입해야 한다 — `audio_service`의
+/// 백그라운드 서비스 등록은 `runApp()` 이전, `main()`에서 단 한 번만 이뤄져야 하기
+/// 때문에 다른 Provider들처럼 여기서 지연 생성할 수 없다.
+final audioHandlerProvider = Provider<StudyAudioHandler>((ref) {
+  throw UnimplementedError('audioHandlerProvider는 main()에서 override되어야 합니다.');
 });

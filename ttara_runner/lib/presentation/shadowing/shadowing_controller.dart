@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/audio/study_audio_handler.dart';
 import '../../core/constants/app_constants.dart';
 import '../../domain/entities/learning_settings.dart';
 import '../../domain/entities/sentence_segment.dart';
@@ -131,6 +132,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   String _audioSource = '';
   StreamSubscription<Duration>? _overrunWatchdogSub;
   bool _resyncingFromOverrun = false;
+  StudyAudioHandler? _audioHandler;
 
   ShadowingController(this.ref, this.mediaId) : super(ShadowingSessionState()) {
     _init();
@@ -167,6 +169,50 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       }
       _overrunWatchdogSub =
           ref.read(audioPlayerServiceProvider).positionStream.listen(_watchForExternalOverrun);
+
+      // 2026-08-09: 잠금화면/알림 미니 플레이어의 이전·재생/정지·다음 버튼을 이
+      // 컨트롤러의 메서드로 직접 연결한다 — 알림이 재생기를 우회해서 만지지 않게 되어,
+      // 반복/속도 설정이 그대로 적용되고 정지도 진짜로 멈춘 채 있는다
+      // ([StudyAudioHandler] 문서 참고).
+      final handler = ref.read(audioHandlerProvider);
+      _audioHandler = handler;
+      handler.onNotificationPlay = () {
+        if (!mounted) return;
+        if (state.viewMode == ShadowingViewMode.single) {
+          resumeOrRestart();
+        } else {
+          playListFromCurrent();
+        }
+      };
+      handler.onNotificationPause = () {
+        if (!mounted) return;
+        if (state.viewMode == ShadowingViewMode.single) {
+          stopSingleMode();
+        } else {
+          stopListPlayback();
+        }
+      };
+      handler.onNotificationSkipToNext = () {
+        if (!mounted) return;
+        if (state.viewMode == ShadowingViewMode.single) {
+          skipToNext();
+        } else {
+          nextInList();
+        }
+      };
+      handler.onNotificationSkipToPrevious = () {
+        if (!mounted) return;
+        if (state.viewMode == ShadowingViewMode.single) {
+          skipToPrevious();
+        } else {
+          previousInList();
+        }
+      };
+      handler.updateNowPlaying(
+        fileName: media?.fileName ?? '',
+        artUri: media?.coverArtPath != null ? Uri.file(media!.coverArtPath!) : null,
+      );
+
       if (initialViewMode == ShadowingViewMode.single) {
         _runSentenceLoop();
       }
@@ -192,22 +238,44 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     final segment = state.currentSegment;
     if (segment == null) return;
     const overrunMarginMs = 1200;
-    if (pos.inMilliseconds > segment.endMs + overrunMarginMs) {
-      debugPrint('[ShadowingController] external playback overran the current sentence boundary '
-          '(pos=${pos.inMilliseconds}ms endMs=${segment.endMs}ms) — resyncing to the study loop.');
-      _resyncingFromOverrun = true;
-      _gen++;
-      await ref.read(audioPlayerServiceProvider).stopSegment();
+    if (pos.inMilliseconds <= segment.endMs + overrunMarginMs) return;
+    // 2026-08-09 버그 수정 (1): 정지 버튼을 누르면 재생이 멈춘 그 위치가 우연히 문장
+    // 경계를 넘어 있을 수 있다(예: 문장이 막 끝나갈 무렵 정지) — 그 자체는 실제 재생이
+    // 계속되는 게 아니라 멈춰서 남아있는 값일 뿐이므로 개입하면 안 된다. 실제로 재생
+    // 중일 때만(=플레이어가 멈춘 걸 넘어 계속 흘러가는 중일 때만) 외부 개입으로
+    // 간주한다.
+    if (!ref.read(audioPlayerServiceProvider).isPlaying) return;
+
+    // 2026-08-09 버그 수정 (2): 위 isPlaying 확인만으로는 부족했다 — 잠금화면 알림에서
+    // 정지를 누른 "바로 그 순간" 도착한 위치 이벤트는, 아직 pause()가 완전히 반영되기
+    // 전이라 isPlaying이 여전히 true로 보일 수 있다. 그 상태에서 바로 재동기화(재생
+    // 재시작)하면 사용자가 방금 누른 정지가 무시된 것처럼 보인다(알림이 사라졌다가
+    // 다시 뜨는 것으로 관찰됨 — 재생 중 알림만 "ongoing"으로 유지되기 때문). 짧게
+    // 한 번 더 확인해서, 그 사이 실제로 멈췄다면(=사용자의 의도적 정지) 아무 것도
+    // 안 하고 넘어간다.
+    _resyncingFromOverrun = true;
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted || !ref.read(audioPlayerServiceProvider).isPlaying) {
       _resyncingFromOverrun = false;
-      if (!mounted) return;
-      state = state.copyWith(phase: ShadowingPhase.idle, awaitingResume: false);
-      _runSentenceLoop();
+      return;
     }
+
+    debugPrint('[ShadowingController] external playback overran the current sentence boundary '
+        '(pos=${pos.inMilliseconds}ms endMs=${segment.endMs}ms) — resyncing to the study loop.');
+    _gen++;
+    await ref.read(audioPlayerServiceProvider).stopSegment();
+    _resyncingFromOverrun = false;
+    if (!mounted) return;
+    state = state.copyWith(phase: ShadowingPhase.idle, awaitingResume: false);
+    _runSentenceLoop();
   }
 
   @override
   void dispose() {
     _overrunWatchdogSub?.cancel();
+    // 이 화면을 벗어날 때 알림 콜백을 해제하지 않으면, 학습 화면 밖(예: 홈)에서도
+    // 알림 버튼이 이미 dispose된(mounted=false) 이 컨트롤러를 계속 참조하게 된다.
+    _audioHandler?.clearCallbacks();
     super.dispose();
   }
 
@@ -446,6 +514,11 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     state = state.copyWith(currentIndex: index, completedRepeats: 0);
     await playListFromCurrent();
   }
+
+  /// 2026-08-09 추가 — 한꺼번에 보기 재생바의 이전/다음 문장 버튼. 목록에서 그 문장을
+  /// 직접 탭한 것과 동일하게 동작한다([selectSentence] 재사용).
+  Future<void> previousInList() => selectSentence(state.currentIndex - 1);
+  Future<void> nextInList() => selectSentence(state.currentIndex + 1);
 
   /// 한꺼번에 보기 하단 재생 버튼 — 2026-08-06: 예전엔 현재 문장을 딱 1회만 미리듣고
   /// 끝났는데(반복 횟수/자동 다음 문장 없음), 사용자가 "한 문장씩 보기"와 마찬가지로
