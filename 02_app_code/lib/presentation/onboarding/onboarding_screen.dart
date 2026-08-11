@@ -18,9 +18,13 @@ final onboardingCompletedProvider = FutureProvider<bool>((ref) async {
 
 class _OnboardingPage {
   final IconData icon;
+  // 2026-08-11: 사용법 안내 슬라이드(#3~#6)는 실제 학습 화면 버튼과 똑같은 아이콘
+  // 2개를 나란히 보여줘야 "이 버튼이구나"를 바로 알아본다 — 기존 큰 원 아이콘 1개
+  // 방식만으로는 뭘 가리키는지 전달이 안 돼서, 값이 있으면 이 리스트를 대신 그린다.
+  final List<IconData>? iconRow;
   final String headline;
   final String subtext;
-  const _OnboardingPage({required this.icon, required this.headline, required this.subtext});
+  const _OnboardingPage({required this.icon, this.iconRow, required this.headline, required this.subtext});
 }
 
 List<_OnboardingPage> _pagesOf(AppLocalizations l10n) => [
@@ -34,10 +38,35 @@ List<_OnboardingPage> _pagesOf(AppLocalizations l10n) => [
         headline: l10n.onboardingPage2Headline,
         subtext: l10n.onboardingPage2Subtext,
       ),
+      // 2026-08-11: 사용자 요청 — 첫 실행 튜토리얼에 실제 사용법(화면 오른쪽 위 버튼들,
+      // 한 문장⇔목록 전환, 편집에서 길이 조절/합치기/나누기)을 추가한다.
       _OnboardingPage(
         icon: Icons.auto_stories,
+        iconRow: const [Icons.view_agenda_outlined, Icons.outlined_flag],
         headline: l10n.onboardingPage3Headline,
         subtext: l10n.onboardingPage3Subtext,
+      ),
+      _OnboardingPage(
+        icon: Icons.view_carousel_outlined,
+        headline: l10n.onboardingPage4Headline,
+        subtext: l10n.onboardingPage4Subtext,
+      ),
+      _OnboardingPage(
+        icon: Icons.edit_outlined,
+        iconRow: const [Icons.edit_outlined, Icons.save_outlined],
+        headline: l10n.onboardingPage5Headline,
+        subtext: l10n.onboardingPage5Subtext,
+      ),
+      _OnboardingPage(
+        icon: Icons.call_merge,
+        iconRow: const [Icons.call_merge, Icons.call_split],
+        headline: l10n.onboardingPage6Headline,
+        subtext: l10n.onboardingPage6Subtext,
+      ),
+      _OnboardingPage(
+        icon: Icons.auto_stories,
+        headline: l10n.onboardingPage7Headline,
+        subtext: l10n.onboardingPage7Subtext,
       ),
     ];
 
@@ -124,15 +153,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 160,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer,
-                            shape: BoxShape.circle,
+                        if (page.iconRow != null)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final icon in page.iconRow!) ...[
+                                if (icon != page.iconRow!.first) const SizedBox(width: AppSpacing.lg),
+                                Container(
+                                  width: 96,
+                                  height: 96,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primaryContainer,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(icon, size: 40, color: theme.colorScheme.primary),
+                                ),
+                              ],
+                            ],
+                          )
+                        else
+                          Container(
+                            width: 160,
+                            height: 160,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primaryContainer,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(page.icon, size: 72, color: theme.colorScheme.primary),
                           ),
-                          child: Icon(page.icon, size: 72, color: theme.colorScheme.primary),
-                        ),
                         const SizedBox(height: AppSpacing.xxl),
                         Text(page.headline, style: AppTypography.display.copyWith(fontSize: 26), textAlign: TextAlign.center),
                         const SizedBox(height: AppSpacing.md),
