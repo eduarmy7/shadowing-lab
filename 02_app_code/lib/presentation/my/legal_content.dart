@@ -1,7 +1,5 @@
-/// 이용약관/개인정보처리방침 본문 — 2026-08-10 초안. **법률 자문이 아니며, 실제 출시
-/// 전 변호사 검토가 필요하다**(화면에도 이 문구를 노출한다). 대괄호로 표시된
-/// `[사업자명/개발자명]`, `[문의 이메일 주소]`, `[YYYY년 MM월 DD일]` 등은 실제 정보로
-/// 반드시 교체해야 하는 자리표시자다.
+/// 이용약관/개인정보처리방침 본문 — 2026-08-10 초안, 2026-08-11 실제 사업자 정보 반영.
+/// **법률 자문이 아니며, 실제 출시 전 변호사 검토가 필요하다**(화면에도 이 문구를 노출한다).
 ///
 /// 정적 법률 문서라 ARB placeholder 치환 방식보다 언어별 긴 본문을 그대로 두는 게
 /// 관리하기 쉬워서, l10n 코드생성 대신 이 파일에서 로케일별로 직접 분기한다.
@@ -9,18 +7,18 @@ library legal_content;
 
 typedef LegalSection = (String heading, String body);
 
-const _placeholderCompany = '[사업자명/개발자명]';
-const _placeholderCompanyEn = '[Business/Developer Name]';
-const _placeholderCompanyJa = '[事業者名/開発者名]';
-const _placeholderEmail = '[문의 이메일 주소]';
-const _placeholderEmailEn = '[contact email address]';
-const _placeholderEmailJa = '[問い合わせ用メールアドレス]';
-const _placeholderContact = '[성명 또는 담당부서]';
-const _placeholderContactEn = '[Name or Department]';
-const _placeholderContactJa = '[氏名または担当部署]';
-const _placeholderDate = '[YYYY년 MM월 DD일]';
-const _placeholderDateEn = '[Month DD, YYYY]';
-const _placeholderDateJa = '[YYYY年MM月DD日]';
+const _placeholderCompany = 'YBG Ltd';
+const _placeholderCompanyEn = 'YBG Ltd';
+const _placeholderCompanyJa = 'YBG Ltd';
+const _placeholderEmail = 'ybgcomybg@gmail.com';
+const _placeholderEmailEn = 'ybgcomybg@gmail.com';
+const _placeholderEmailJa = 'ybgcomybg@gmail.com';
+const _placeholderContact = '김보림';
+const _placeholderContactEn = 'Borim Kim';
+const _placeholderContactJa = 'キム・ボリム';
+const _placeholderDate = '2026년 08월 11일';
+const _placeholderDateEn = 'August 11, 2026';
+const _placeholderDateJa = '2026年08月11日';
 
 List<LegalSection> termsOfService(String languageCode) => switch (languageCode) {
       'en' => _termsEn,
