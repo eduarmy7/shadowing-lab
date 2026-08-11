@@ -7,7 +7,7 @@ import '../../core/audio/study_audio_handler.dart';
 import '../../core/notifications/reminder_notification_service.dart';
 import '../../core/permissions/permission_service.dart';
 import '../../data/local/local_kv_store.dart';
-import '../../data/repositories/fake_purchase_repository.dart';
+import '../../data/repositories/google_play_purchase_repository.dart';
 import '../../data/repositories/fake_segmentation_repository.dart';
 import '../../data/repositories/local_media_repository.dart';
 import '../../data/repositories/local_settings_repository.dart';
@@ -54,9 +54,14 @@ final segmentWaveformProvider = FutureProvider.autoDispose
       );
 });
 
-/// "광고 제거" 단발성 구매 — 현재 Fake 구현체.
+/// "광고 제거" 단발성 구매 — 2026-08-11부터 실제 Google Play Billing 연동
+/// (`GooglePlayPurchaseRepository`). purchaseStream 구독을 앱 전역에서 하나만
+/// 유지해야 하므로 autoDispose를 쓰지 않는다(dispose 시 구독 해제는 앱 종료와
+/// 함께 자연 정리된다).
 final purchaseRepositoryProvider = Provider<PurchaseRepository>((ref) {
-  return FakePurchaseRepository(ref.watch(localKvStoreProvider));
+  final repo = GooglePlayPurchaseRepository(ref.watch(localKvStoreProvider));
+  ref.onDispose(repo.dispose);
+  return repo;
 });
 
 final statsRepositoryProvider = Provider<StatsRepository>((ref) {

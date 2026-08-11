@@ -91,6 +91,13 @@ dependencies:
   # 프로덕션 ID로 교체해야 한다(스토어 출시 전 필수).
   google_mobile_ads: ^9.0.0
 
+  # ── 인앱 구매(광고 제거) ────────────────────────────
+  # 2026-08-11: FakePurchaseRepository(로컬 시뮬레이션) 대신 실제 Google Play
+  # Billing 연동. 상품 ID는 PurchaseRepository.adRemovalProductId(현재 값
+  # 'com.shadowinglab.remove_ads') — Play Console에서 인앱 상품을 만들 때 반드시
+  # 이 문자열과 정확히 똑같이 등록해야 한다.
+  in_app_purchase: ^3.2.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

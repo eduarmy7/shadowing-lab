@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <!-- 2026-08-11: 실제 Google Play Billing 연동(광고 제거 인앱결제)에 필요.
+         Billing 라이브러리 자체 매니페스트에도 포함돼 있어 보통 자동 병합되지만,
+         명시적으로 선언해 누락 위험을 없앤다. -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
 
     <application
         android:label="쉐도잉랩"
