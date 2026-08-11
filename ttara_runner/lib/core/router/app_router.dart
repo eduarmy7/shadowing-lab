@@ -32,6 +32,17 @@ import '../../presentation/shadowing/shadowing_screen.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/onboarding',
+    // 2026-08-11 버그 수정: 예전엔 온보딩을 이미 마친 사용자도 '/onboarding' 화면이
+    // 한 프레임 그려진 뒤에야(OnboardingScreen.initState의 postFrameCallback) 완료
+    // 여부를 비동기로 확인해 '/home'으로 돌려보냈다 — 그 사이 온보딩 1페이지가
+    // 눈에 아주 짧게 보였다 사라지는 깜빡임으로 나타났다. 목적지 화면을 짓기 전에
+    // 먼저 판단하는 라우터 레벨 redirect로 옮기면 온보딩 화면 자체가 아예 빌드되지
+    // 않는다.
+    redirect: (context, state) async {
+      if (state.matchedLocation != '/onboarding') return null;
+      final done = await ref.read(onboardingCompletedProvider.future);
+      return done ? '/home' : null;
+    },
     routes: [
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       StatefulShellRoute.indexedStack(

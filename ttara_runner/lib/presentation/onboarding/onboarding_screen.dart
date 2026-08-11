@@ -86,15 +86,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // l10n으로 매번 새로 가져온다.
   bool _showPermissionNotice = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // 이미 온보딩을 마친 사용자는 곧바로 홈으로 — 재실행 시 반복 노출 방지.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final done = await ref.read(onboardingCompletedProvider.future);
-      if (done && mounted) context.go('/home');
-    });
-  }
+  // 2026-08-11: 온보딩 완료 여부 확인은 이제 이 화면이 빌드되기 전에 라우터
+  // redirect(`app_router.dart`)에서 끝난다 — 이미 완료한 사용자는 이 위젯 자체가
+  // 만들어지지 않으므로, 여기서 다시 확인하고 되돌려보낼 필요가 없다.
 
   Future<void> _complete() async {
     // 2026-08-08: 마이크 권한 요청 제거 — 앱 어디에도 실제 오디오 녹음/분석 코드가
