@@ -42,6 +42,12 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- AdMob 앱 ID. 2026-08-11: 지금은 Google 공식 테스트 앱 ID(ca-app-pub-3940256099942544~3347511713) —
+             실제 AdMob 계정에서 발급받은 프로덕션 앱 ID로 반드시 교체 후 스토어에 출시할 것. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+
         <!-- just_audio_background 필수 서비스 선언 — 이게 없으면 JustAudioBackground.init()이
              MediaBrowserService 연결을 영원히 기다려 앱이 스플래시 화면에서 멈춘다. -->
         <service android:name="com.ryanheise.audioservice.AudioService"

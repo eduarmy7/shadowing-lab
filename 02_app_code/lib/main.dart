@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/ads/ad_mob_ad_service.dart';
 import 'core/audio/audio_player_service.dart';
 import 'core/audio/study_audio_handler.dart';
 import 'core/router/app_router.dart';
@@ -23,6 +24,12 @@ Future<void> main() async {
   // 잠금에도 학습 루프가 끊기지 않아야 한다는 원 요구사항(01_ux_design.md)은 그대로
   // 유지된다 — MainActivity가 여전히 audio_service의 AudioServiceFragmentActivity를
   // 베이스로 쓴다.
+  // 2026-08-11: AdMob은 첫 배너/전면 광고 요청 전에 MobileAds.instance.initialize()가
+  // 완료돼 있어야 한다 — 홈 화면 배너가 앱 시작 직후 바로 로드를 시도하므로 runApp
+  // 이전에 await한다(audio_service 초기화와 동일한 부트스트랩 패턴).
+  final adService = AdMobAdService();
+  await adService.initialize();
+
   final audioPlayerService = AudioPlayerService();
   final audioHandler = await AudioService.init(
     builder: () => StudyAudioHandler(audioPlayerService),
@@ -59,6 +66,7 @@ Future<void> main() async {
     overrides: [
       audioPlayerServiceProvider.overrideWithValue(audioPlayerService),
       audioHandlerProvider.overrideWithValue(audioHandler),
+      adServiceProvider.overrideWithValue(adService),
     ],
     child: const TtaraApp(),
   ));

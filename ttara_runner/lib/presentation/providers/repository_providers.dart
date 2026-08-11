@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/ads/ad_mob_ad_service.dart';
 import '../../core/ads/ad_service.dart';
 import '../../core/audio/audio_player_service.dart';
 import '../../core/audio/cover_art_extractor.dart';
@@ -66,8 +67,9 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return LocalSettingsRepository(ref.watch(localKvStoreProvider));
 });
 
-/// 광고 SDK 연동 지점 — 현재 NoOpAdService(플레이스홀더). 실 SDK 연동 시 이 Provider만 교체.
-final adServiceProvider = Provider<AdService>((ref) => NoOpAdService());
+/// 광고 SDK 연동 지점 — 2026-08-11부터 AdMobAdService(테스트 광고 단위 ID) 사용.
+/// 프로덕션 전환 시 `ad_mob_ad_service.dart` 상단 상수를 실제 ID로 교체만 하면 된다.
+final adServiceProvider = Provider<AdService>((ref) => AdMobAdService());
 
 final permissionServiceProvider = Provider<PermissionService>((ref) => PermissionService());
 
