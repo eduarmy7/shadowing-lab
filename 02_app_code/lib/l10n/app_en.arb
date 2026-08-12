@@ -200,7 +200,6 @@
   "openPlayStoreFailed": "Couldn't open the Play Store",
   "termsOfServiceTitle": "Terms of Service",
   "privacyPolicyTitle": "Privacy Policy",
-  "legalDisclaimer": "This document is a reference draft, not legal advice. We recommend a lawyer review it before real launch.",
 
   "faqQ1": "A sentence got split oddly. Can I fix it?",
   "faqA1": "Yes. On the study screen, long-press a sentence or tap the edit icon to drag its boundary, or merge/split it with the neighboring sentence.",
