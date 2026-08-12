@@ -54,6 +54,14 @@ android {
             // key.properties가 없는 환경(예: CI 없이 로컬 디버그만 하는 경우)에서는
             // 빌드가 깨지지 않도록 debug 서명으로 안전하게 폴백한다.
             signingConfig = if (keystorePropertiesFile.exists()) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            // 2026-08-12: Flutter Gradle 플러그인이 릴리스 빌드에 기본으로 R8 코드 축소를
+            // 켜는데, 이게 flutter_local_notifications가 내부적으로 쓰는 Gson의 제네릭
+            // 타입 시그니처(TypeToken)를 지워버려서 예약 알림 로드 시 "Missing type
+            // parameter" RuntimeException으로 죽는 실제 원인이었다(디버그 빌드는 축소가
+            // 없어 재현이 안 됨 — 실기기 릴리스 설치로만 발견됨). 앱 용량 민감도가 낮아
+            // (기존 AAB도 실제 다운로드 크기는 13MB 수준) 축소 자체를 끈다.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
