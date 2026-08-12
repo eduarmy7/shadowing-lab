@@ -1,7 +1,7 @@
 name: ttara
-description: "쉐도잉랩(ShadowingLab) — AI가 잘라주는 진짜 쉐도잉. 영어 쉐도잉 학습 앱"
+description: "쉐도잉랩(ShadowingLab) — 자동으로 나눠주는 진짜 쉐도잉. 영어 쉐도잉 학습 앱"
 publish_to: 'none'
-version: 1.0.0+3
+version: 1.0.0+4
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

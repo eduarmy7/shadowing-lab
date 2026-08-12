@@ -14,10 +14,16 @@
          명시적으로 선언해 누락 위험을 없앤다. -->
     <uses-permission android:name="com.android.vending.BILLING"/>
 
+    <!-- 2026-08-12: Android Auto Backup이 재설치 시 flutter_local_notifications의
+         구버전 예약 알림 캐시(SharedPreferences)를 복원하면서, 현재 플러그인 버전의
+         Gson TypeToken과 형식이 안 맞아 "Missing type parameter" RuntimeException으로
+         알림 켜기가 죽는 문제 발견 — 백업/복원 자체를 꺼서 스테일 캐시 복원을 막는다. -->
     <application
         android:label="쉐도잉랩"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
