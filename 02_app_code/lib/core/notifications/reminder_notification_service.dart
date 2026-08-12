@@ -4,12 +4,9 @@ import 'package:timezone/timezone.dart' as tz;
 /// 학습 리마인더(마이 > 알림 설정) 실제 발동 담당. 서버 푸시가 아니라 기기에 예약하는
 /// 로컬 알림이다 — "HH:mm" 문자열 하나를 받아 매일 그 시간에 반복 알림을 띄운다.
 ///
-/// **알려진 제약**: Android는 기기가 완전히 재부팅되면 예약된 알람이 초기화된다.
-/// 이 플러그인은 재부팅 후 자동 재예약 리시버를 내장하지 않으므로(순수 Dart API만
-/// 사용, 별도 네이티브 BootReceiver 구현은 이번 범위 밖), 재부팅 후 앱을 한 번이라도
-/// 열면 [main.dart]의 시작 시 재예약 로직이 다시 걸어준다 — 앱을 아예 안 열면 그
-/// 사이엔 알림이 안 온다. 실사용에서 큰 문제가 되면 그때 네이티브 BootReceiver를
-/// 추가하는 걸 권장.
+/// **재부팅 대응**: `AndroidManifest.xml`에 등록해둔 `ScheduledNotificationBootReceiver`가
+/// 재부팅(`BOOT_COMPLETED`) 시 플러그인이 자체적으로 예약을 복원해준다 — 앱을 다시
+/// 열 필요 없음.
 class ReminderNotificationService {
   static const _notificationId = 1001;
   static const _channelId = 'ttara.study_reminder';

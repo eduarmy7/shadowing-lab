@@ -13,6 +13,13 @@
          Billing 라이브러리 자체 매니페스트에도 포함돼 있어 보통 자동 병합되지만,
          명시적으로 선언해 누락 위험을 없앤다. -->
     <uses-permission android:name="com.android.vending.BILLING"/>
+    <!-- 2026-08-12: flutter_local_notifications 16+는 예약 알림을 실제로 처리할 리시버를
+         플러그인 자체 매니페스트에 더 이상 넣어주지 않는다 — 앱 쪽에서 직접 선언해야
+         한다(공식 README "AndroidManifest.xml setup" 항목). 이게 빠져 있어서 알람은
+         정확히 울렸는데도 실제 알림을 만드는 컴포넌트가 아예 등록이 안 돼 있어 조용히
+         아무 일도 안 일어나던 게 "학습 리마인더가 안 울려요" 버그의 진짜 원인이었다.
+         재부팅 후 재예약을 위한 BOOT_COMPLETED 권한도 함께 추가. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <!-- 2026-08-12: Android Auto Backup이 재설치 시 flutter_local_notifications의
          구버전 예약 알림 캐시(SharedPreferences)를 복원하면서, 현재 플러그인 버전의
@@ -71,6 +78,18 @@
             android:exported="true" tools:ignore="Instantiatable">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 2026-08-12: flutter_local_notifications 공식 필수 설정 — 이게 없으면 예약
+             알림의 AlarmManager 브로드캐스트가 전달될 대상 자체가 없어 조용히 무시된다. -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
     </application>
