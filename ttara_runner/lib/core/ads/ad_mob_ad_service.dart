@@ -6,15 +6,19 @@ import 'ad_service.dart';
 
 /// 2026-08-11: [NoOpAdService] 플레이스홀더를 대체하는 실제 AdMob 연동.
 ///
-/// **광고 단위 ID는 전부 Google 공식 테스트 ID다** — 실제 AdMob 계정에서 발급받은
-/// 프로덕션 앱 ID(AndroidManifest.xml/Info.plist)와 광고 단위 ID(아래 상수)로
-/// 반드시 교체한 뒤 스토어에 출시할 것. 테스트 ID로 출시하면 광고 수익이 전혀
-/// 발생하지 않는다(Google이 항상 테스트 하우스 광고만 채워줌).
+/// **Android는 2026-08-11부터 YBG Ltd의 실제 AdMob 계정(앱 ID
+/// ca-app-pub-3703514883602304~8606315538, AndroidManifest.xml에도 반영됨)의
+/// 진짜 광고 단위 ID를 쓴다 — 실제 광고 수익이 발생한다.**
+///
+/// **iOS는 아직 AdMob 앱을 만들지 않아 Google 공식 테스트 ID 그대로다** — 이번
+/// 세션은 Android 우선(사용자 결정: "일단 안드로이드만 출시해보고, 반응 좋으면
+/// 애플 스토어도")이라 iOS는 실제 출시 준비 시점에 별도로 AdMob 앱/광고단위를
+/// 새로 만들어 교체해야 한다.
 String get _bannerAdUnitId =>
-    Platform.isIOS ? 'ca-app-pub-3940256099942544/2934735716' : 'ca-app-pub-3940256099942544/6300978111';
+    Platform.isIOS ? 'ca-app-pub-3940256099942544/2934735716' : 'ca-app-pub-3703514883602304/7089073945';
 
 String get _interstitialAdUnitId =>
-    Platform.isIOS ? 'ca-app-pub-3940256099942544/4411468910' : 'ca-app-pub-3940256099942544/1033173712';
+    Platform.isIOS ? 'ca-app-pub-3940256099942544/4411468910' : 'ca-app-pub-3703514883602304/3341400621';
 
 class AdMobAdService implements AdService {
   InterstitialAd? _interstitialAd;

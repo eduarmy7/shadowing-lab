@@ -43,7 +43,11 @@ class HomeScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push('/my/settings'),
+            // 2026-08-12 버그 수정: 마이 탭 설정이 5개 화면으로 분리되면서 통합
+            // '/my/settings' 경로 자체가 사라졌는데, 이 버튼만 옛 경로를 그대로
+            // 가리키고 있어 "GoException: no routes for location: /my/settings"로
+            // 죽었다 — 지금은 그 5개 항목이 모여 있는 마이 탭 홈으로 보낸다.
+            onPressed: () => context.push('/my'),
             tooltip: l10n.settingsTooltip,
           ),
         ],

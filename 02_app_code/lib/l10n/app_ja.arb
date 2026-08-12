@@ -194,6 +194,9 @@
   "studyReminderNotificationTitle": "シャドーイングラボ",
   "studyReminderNotificationBody": "勉強の時間です！今日も一文ずつシャドーイングしてみましょう。",
   "notificationPermissionDenied": "通知がオフになっています。端末設定で通知を許可してください。",
+  "notificationPermissionDialogTitle": "通知の許可が必要です",
+  "notificationPermissionDialogBody": "学習リマインダーを受け取るには、設定で通知を許可してください。",
+  "goToSettingsButton": "設定へ移動",
 
   "faqTitle": "よくある質問",
   "contactUsDescription": "Playストアの評価・レビューでご意見をお寄せください。",

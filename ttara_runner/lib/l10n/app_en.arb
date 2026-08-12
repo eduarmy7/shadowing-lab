@@ -194,6 +194,9 @@
   "studyReminderNotificationTitle": "ShadowingLab",
   "studyReminderNotificationBody": "Time to study! Let's shadow a sentence or two today.",
   "notificationPermissionDenied": "Notifications are turned off. Please allow notifications in device settings.",
+  "notificationPermissionDialogTitle": "Notification permission needed",
+  "notificationPermissionDialogBody": "To receive study reminders, please allow notifications in Settings.",
+  "goToSettingsButton": "Go to Settings",
 
   "faqTitle": "Frequently Asked Questions",
   "contactUsDescription": "Please leave your feedback via a Play Store rating and review.",
