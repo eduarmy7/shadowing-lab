@@ -1,7 +1,7 @@
 name: ttara
 description: "쉐도잉랩(ShadowingLab) — AI가 잘라주는 진짜 쉐도잉. 영어 쉐도잉 학습 앱"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -86,9 +86,9 @@ dependencies:
 
   # ── 광고(AdMob) ──────────────────────────────────
   # 2026-08-11: NoOpAdService 플레이스홀더를 실제 SDK로 교체(`core/ads/ad_mob_ad_service.dart`).
-  # 현재 앱/광고 단위 ID는 전부 Google 공식 테스트 ID — 실제 AdMob 계정 생성 후
-  # `ad_mob_ad_service.dart` 상단 상수와 AndroidManifest.xml의 APPLICATION_ID를
-  # 프로덕션 ID로 교체해야 한다(스토어 출시 전 필수).
+  # 2026-08-11: Android는 YBG Ltd 실제 AdMob 계정의 프로덕션 앱/광고단위 ID로 교체
+  # 완료(`ad_mob_ad_service.dart`, AndroidManifest.xml). iOS는 아직 AdMob 앱을
+  # 만들지 않아 Google 공식 테스트 ID로 남아있음 — iOS 출시 준비 시 교체 필요.
   google_mobile_ads: ^9.0.0
 
   # ── 인앱 구매(광고 제거) ────────────────────────────
