@@ -20,6 +20,11 @@
          아무 일도 안 일어나던 게 "학습 리마인더가 안 울려요" 버그의 진짜 원인이었다.
          재부팅 후 재예약을 위한 BOOT_COMPLETED 권한도 함께 추가. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- 2026-08-13: inexactAllowWhileIdle로 예약하던 게 진짜 원인 — Doze 모드에서
+         OS가 알람을 배치 처리 창까지 미뤄버려서, 앱을 열어 프로세스를 깨우기 전엔
+         정시에 안 울리던 증상(11:50 예약 → 안 울림 → 앱 켠 12:10에야 발동)이 이걸로
+         설명된다. exactAllowWhileIdle로 바꾸려면 이 권한이 필요하다(Android 12+). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
 
     <!-- 2026-08-12: Android Auto Backup이 재설치 시 flutter_local_notifications의
          구버전 예약 알림 캐시(SharedPreferences)를 복원하면서, 현재 플러그인 버전의

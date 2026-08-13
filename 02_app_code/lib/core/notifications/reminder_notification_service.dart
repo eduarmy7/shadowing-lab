@@ -9,7 +9,12 @@ import 'package:timezone/timezone.dart' as tz;
 /// 열 필요 없음.
 class ReminderNotificationService {
   static const _notificationId = 1001;
-  static const _channelId = 'ttara.study_reminder';
+  // 2026-08-13: importance를 default→high로 올리면서 채널 id도 바꿨다. 채널은
+  // 한 번 만들어지면 이후 같은 id로 다시 만들어도(importance 등 속성이 코드에서
+  // 바뀌어도) OS가 기존 채널 설정을 그대로 유지한다 — 이미 설치된 기기에서는
+  // 예전 채널(_legacyChannelId)이 계속 DEFAULT로 남아 새 설정이 적용 안 된다.
+  static const _channelId = 'ttara.study_reminder.v2';
+  static const _legacyChannelId = 'ttara.study_reminder';
   static const _channelName = '학습 리마인더';
 
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
@@ -22,6 +27,10 @@ class ReminderNotificationService {
     await _plugin.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit, macOS: iosInit),
     );
+    // 기존 기기에 남아있는 구채널 정리 — 없어도(신규 설치) 조용히 무시된다.
+    await _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.deleteNotificationChannel(_legacyChannelId);
     _initialized = true;
   }
 
@@ -40,6 +49,27 @@ class ReminderNotificationService {
       return granted ?? false;
     }
     return true;
+  }
+
+  /// 정확한 알람(SCHEDULE_EXACT_ALARM) 권한 확인/요청 — iOS/Android 12 미만은
+  /// 이 개념이 아예 없어 항상 true. 이미 허용돼 있으면 시스템 설정 화면을 띄우지
+  /// 않고 바로 true를 돌려준다(중복 호출 안전).
+  Future<bool> hasExactAlarmPermission() async {
+    await _ensureInitialized();
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl == null) return true;
+    final can = await androidImpl.canScheduleExactNotifications();
+    return can ?? true;
+  }
+
+  /// "알람 및 리마인더" 특별 접근 설정 화면을 띄우고, 사용자가 돌아온 뒤의
+  /// 최종 허용 여부를 돌려준다(내부적으로 `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`).
+  Future<bool> requestExactAlarmPermission() async {
+    await _ensureInitialized();
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImpl == null) return true;
+    final granted = await androidImpl.requestExactAlarmsPermission();
+    return granted ?? false;
   }
 
   /// [time]은 "HH:mm" — 기존 예약이 있으면 먼저 취소하고 다시 건다(시간 변경 시
@@ -78,17 +108,24 @@ class ReminderNotificationService {
           _channelId,
           _channelName,
           channelDescription: '설정한 시간에 학습을 상기시켜주는 알림',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
+          // 2026-08-13: default importance는 화면이 꺼져있으면 알림 패널에만
+          // 조용히 쌓이고 화면을 켜기 전엔 알아챌 방법이 없다는 실사용 피드백으로
+          // high로 상향 — heads-up(팝업)으로 뜨면서 화면도 깨운다.
+          importance: Importance.high,
+          priority: Priority.high,
         ),
         iOS: DarwinNotificationDetails(),
       ),
       // scheduled를 이미 절대 시각(UTC 인스턴트)으로 계산해뒀으므로 절대시간 해석.
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      // 정확한 알람 권한(SCHEDULE_EXACT_ALARM) 없이도 동작하는 근사 스케줄링 —
-      // 학습 리마인더는 초 단위 정확도가 필요 없으므로(몇 분 오차 허용) 굳이 별도
-      // 권한을 요구하지 않는 쪽을 택했다.
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      // 2026-08-13: inexactAllowWhileIdle → exactAllowWhileIdle로 변경. "몇 분 오차
+      // 허용"이면 되겠다 싶었지만 실사용 결과 오차가 아니라 Doze 유지보수 창까지
+      // 통째로 미뤄지는 문제였다(11:50 예약 → 앱을 열어 프로세스를 깨운 12:10에야
+      // 발동). 정확한 알람은 SCHEDULE_EXACT_ALARM 권한이 필요 — 호출부
+      // (notification_settings_screen.dart)에서 scheduleDaily 전에 반드시
+      // hasExactAlarmPermission()/requestExactAlarmPermission()으로 확보해야
+      // 하며, 없이 exactAllowWhileIdle로 예약하면 플러그인이 ExactAlarmPermissionException을 던진다.
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time, // 매일 반복.
     );
   }

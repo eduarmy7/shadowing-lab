@@ -38,14 +38,35 @@ Future<void> _showPermissionSettingsDialog(BuildContext context, WidgetRef ref) 
 class NotificationSettingsScreen extends ConsumerWidget {
   const NotificationSettingsScreen({super.key});
 
+  /// 알림 권한 + 정확한 알람(SCHEDULE_EXACT_ALARM) 권한을 순서대로 확보한다.
+  /// 하나라도 거부되면 설정 화면 안내 다이얼로그를 띄우고 false를 돌려준다.
+  ///
+  /// **2026-08-13 재발 방지**: 리마인더를 켤 때만(`_toggleReminder`) 이 확보 절차를
+  /// 거치고, 이미 켜진 상태에서 시간만 바꾸는 `_pickTime`은 곧장 `scheduleDaily`를
+  /// 불러서 — 정확한 알람 권한을 아직 못 받은(예: 이 권한 로직이 생기기 전부터
+  /// 리마인더가 켜져 있던) 사용자가 시간만 바꿔도 예외가 나고 그게 에러 토스트로
+  /// 노출되던 버그가 있었다. 두 진입점 모두 이 헬퍼를 거치도록 통일.
+  Future<bool> _ensurePermissions(BuildContext context, WidgetRef ref) async {
+    final service = ref.read(reminderNotificationServiceProvider);
+    final granted = await service.requestPermission();
+    if (!granted) {
+      if (context.mounted) await _showPermissionSettingsDialog(context, ref);
+      return false;
+    }
+    if (!await service.hasExactAlarmPermission()) {
+      final exactGranted = await service.requestExactAlarmPermission();
+      if (!exactGranted) {
+        if (context.mounted) await _showPermissionSettingsDialog(context, ref);
+        return false;
+      }
+    }
+    return true;
+  }
+
   Future<void> _toggleReminder(BuildContext context, WidgetRef ref, bool enabled, String currentTime) async {
     try {
       if (enabled) {
-        final granted = await ref.read(reminderNotificationServiceProvider).requestPermission();
-        if (!granted) {
-          if (context.mounted) await _showPermissionSettingsDialog(context, ref);
-          return;
-        }
+        if (!await _ensurePermissions(context, ref)) return;
         await ref.read(reminderNotificationServiceProvider).scheduleDaily(currentTime);
       } else {
         await ref.read(reminderNotificationServiceProvider).cancel();
@@ -69,7 +90,16 @@ class NotificationSettingsScreen extends ConsumerWidget {
     final newTime = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
     await updateLearningSettings(ref, (s) => s.copyWith(reminderTime: newTime));
     if (enabled) {
-      await ref.read(reminderNotificationServiceProvider).scheduleDaily(newTime);
+      try {
+        if (!context.mounted) return;
+        if (!await _ensurePermissions(context, ref)) return;
+        await ref.read(reminderNotificationServiceProvider).scheduleDaily(newTime);
+      } catch (e) {
+        if (context.mounted) {
+          final l10n = AppLocalizations.of(context)!;
+          AppToast.show(context, '${l10n.notificationPermissionDenied}\n($e)', type: AppToastType.error);
+        }
+      }
     }
   }
 
