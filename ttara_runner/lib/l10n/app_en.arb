@@ -114,7 +114,7 @@
   "@estimatedTimeSpecific": { "placeholders": { "minutes": { "type": "String" } } },
   "estimatedTimeGeneric": "Usually about {seconds}s per 10 min of video",
   "@estimatedTimeGeneric": { "placeholders": { "seconds": { "type": "int" } } },
-  "continueInBackground": "Continue in Background",
+  "analyzingStayWarning": "Leaving ShadowingLab may pause the analysis. Using other menus in the app is fine — just don't leave the app while you wait.",
   "analyzingErrorGeneric": "Something went wrong while splitting sentences",
   "manualSplit": "Split Manually",
   "lessThanOneMinute": "under 1 min",

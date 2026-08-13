@@ -17,10 +17,19 @@ import 'analyzing_controller.dart';
 /// 잠금 타임아웃) 일부 안드로이드 기기가 백그라운드 프로세스를 절전 처리하면서
 /// `SilenceDetector`가 돌고 있는 isolate 실행이 멈춰버리는 것으로 보인다
 /// (`ShadowingScreen`이 학습 중 화면 꺼짐을 막는 것과 같은 문제) — 그래서 이 화면을
-/// 보고 있는 동안에는 wakelock으로 화면이 꺼지지 않게 한다. "백그라운드에서 계속"을
-/// 눌러 이 화면을 실제로 벗어나면 wakelock도 해제된다(그건 사용자가 의도적으로 다른
-/// 일을 하러 가는 것이므로 화면을 계속 켜둘 이유가 없다 — 다만 그 경우 안드로이드의
-/// 백그라운드 프로세스 절전 자체를 막지는 못한다는 한계는 남아있다).
+/// 보고 있는 동안에는 wakelock으로 화면이 꺼지지 않게 한다.
+///
+/// 2026-08-13: wakelock은 앱 자체가 포그라운드일 때만 유효하다 — 다른 앱으로
+/// 전환하거나 화면을 꺼서 쉐도잉랩 전체가 백그라운드로 밀려나면 즉시 무력화되고
+/// 안드로이드가 백그라운드 프로세스를 절전 처리해 분석이 멈추는 게 실사용에서
+/// 확인됐다(예전엔 "백그라운드에서 계속" 버튼으로 의도적으로 나갈 수 있었는데,
+/// 그 버튼이 있다고 안전한 게 아니었다). **이 화면 자체를 벗어나는 것과는 다르다**
+/// — 이 라우트는 `StatefulShellRoute`의 홈 탭 브랜치에 속해서, 마이 탭 등 앱 안의
+/// 다른 메뉴로 이동해도 `IndexedStack`이 이 위젯을 계속 마운트된 채로 들고 있어
+/// dispose가 안 되고 wakelock도 안 풀린다 — 실제로 위험한 건 앱을 통째로 벗어나는
+/// 것뿐이다. 근본 해결(포그라운드 서비스로 감싸기)은 하지 않기로 하고, 대신
+/// "백그라운드에서 계속" 버튼을 없애고 앱을 나가면 멈출 수 있다는 경고 문구만
+/// 상시 노출한다 — 뒤로가기/홈으로 앱을 나가는 것 자체는 막지 않는다.
 class AiAnalyzingScreen extends ConsumerStatefulWidget {
   final String mediaId;
   const AiAnalyzingScreen({super.key, required this.mediaId});
@@ -97,9 +106,25 @@ class _AiAnalyzingScreenState extends ConsumerState<AiAnalyzingScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  TextButton(
-                    onPressed: () => context.go('/home'),
-                    child: Text(l10n.continueInBackground),
+                  // 2026-08-13: "백그라운드에서 계속" 버튼 삭제 — wakelock은 이 화면이
+                  // 실제로 보이고 있을 때만 유효해서, 눌러서 나가는 순간 보호가
+                  // 사라지고 안드로이드가 백그라운드 프로세스를 절전 처리해 분석이
+                  // 멈추는 게 실사용에서 확인됐다(사용자가 늘 화면을 지켜봐서 이제야
+                  // 드러남). 대신 벗어나면 멈출 수 있다는 걸 명확히 경고만 한다 —
+                  // 뒤로가기/홈 버튼으로 나가는 것 자체는 막지 않는다.
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 16, color: theme.colorScheme.error),
+                      const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        child: Text(
+                          l10n.analyzingStayWarning,
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
                   ),
                 ] else ...[
                   Text(

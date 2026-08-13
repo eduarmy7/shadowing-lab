@@ -114,7 +114,7 @@
   "@estimatedTimeSpecific": { "placeholders": { "minutes": { "type": "String" } } },
   "estimatedTimeGeneric": "通常、動画10分あたり約{seconds}秒かかります",
   "@estimatedTimeGeneric": { "placeholders": { "seconds": { "type": "int" } } },
-  "continueInBackground": "バックグラウンドで続ける",
+  "analyzingStayWarning": "シェドウイングラボを離れると分析が止まることがあります。アプリ内で他のメニューを使っても大丈夫なので、アプリを離れずにお待ちください。",
   "analyzingErrorGeneric": "文章の分割中に問題が発生しました",
   "manualSplit": "手動で分割する",
   "lessThanOneMinute": "1分未満",

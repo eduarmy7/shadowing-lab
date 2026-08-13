@@ -114,7 +114,7 @@
   "@estimatedTimeSpecific": { "placeholders": { "minutes": { "type": "String" } } },
   "estimatedTimeGeneric": "보통 영상 10분당 약 {seconds}초 걸려요",
   "@estimatedTimeGeneric": { "placeholders": { "seconds": { "type": "int" } } },
-  "continueInBackground": "백그라운드에서 계속",
+  "analyzingStayWarning": "쉐도잉랩을 나가면 분석이 멈출 수 있어요. 앱 안에서 다른 메뉴를 써도 괜찮으니, 앱을 나가지 않은 채로 기다려주세요.",
   "analyzingErrorGeneric": "문장을 나누는 중 문제가 발생했어요",
   "manualSplit": "수동으로 나누기",
   "lessThanOneMinute": "1분 미만",
