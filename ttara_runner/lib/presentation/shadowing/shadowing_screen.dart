@@ -31,6 +31,7 @@ class ShadowingScreen extends ConsumerStatefulWidget {
 
 class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
   bool _navigatedToSummary = false;
+  bool _exiting = false;
 
   @override
   void initState() {
@@ -43,6 +44,21 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
   void dispose() {
     WakelockPlus.disable();
     super.dispose();
+  }
+
+  /// 2026-08-13: 세션을 끝까지 마치지 않고 학습 화면을 나갈 때(닫기 버튼 / 뒤로가기)의
+  /// 전면 광고 트리거 — 사용자 확정 규칙("앱종료하기, 뒤로가기, 20문장마다"). 완주 후
+  /// 요약 화면 진입 시점 트리거와는 별개 경로라 두 번 겹쳐 뜨지 않는다(완주 시엔 이
+  /// 메서드가 아니라 [_navigatedToSummary] 경로로 곧장 요약 화면으로 넘어가고, 그
+  /// 화면에서 자체적으로 한 번 더 트리거한다).
+  Future<void> _exitToHome(BuildContext context) async {
+    if (_exiting) return;
+    _exiting = true;
+    final adsRemoved = await ref.read(purchaseRepositoryProvider).watchAdsRemoved().first;
+    if (!adsRemoved) {
+      await ref.read(adServiceProvider).showInterstitial();
+    }
+    if (context.mounted) context.go('/home');
   }
 
   Future<void> _openEditor(BuildContext context, ShadowingController controller, int index) async {
@@ -72,6 +88,15 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
       if (next.error != null && next.error != prev?.error) {
         AppToast.show(context, next.error!, type: AppToastType.error);
       }
+      // 2026-08-13: "20문장마다" 전면 광고 트리거(사용자 확정 규칙) — 완료 문장 수가
+      // 20의 배수를 막 넘어선 순간에만 1회 발동시키려고 이전/이후 개수를 비교한다.
+      // 세션 완주와 정확히 같은 타이밍(예: 정확히 20문장짜리 콘텐츠)이면 아래 요약
+      // 화면 트리거와 겹치므로 그쪽에만 맡기고 여기선 건너뛴다.
+      final prevDone = prev?.fullyCompletedIndices.length ?? 0;
+      final nextDone = next.fullyCompletedIndices.length;
+      if (!adsRemoved && nextDone > prevDone && nextDone % 20 == 0 && !next.isSessionFullyDone) {
+        adService.showInterstitial();
+      }
       if (!_navigatedToSummary && next.isSessionFullyDone && (prev?.isSessionFullyDone ?? false) == false) {
         _navigatedToSummary = true;
         // 2026-08-10: 통계 누적 자체는 이제 문장 단위로 실시간 처리된다
@@ -97,7 +122,13 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     final segment = state.currentSegment!;
     final isListMode = state.viewMode == ShadowingViewMode.list;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _exitToHome(context);
+      },
+      child: Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
@@ -109,6 +140,9 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                   IconButton(
                     icon: const Icon(Icons.close),
                     tooltip: l10n.studyEnd,
+                    // 2026-08-13: 사용자 요청으로 닫기(X) 버튼은 전면 광고 트리거에서 제외
+                    // — 너무 가볍게, 자주 누르는 버튼이라 매번 광고가 뜨면 마찰이 크다는
+                    // 판단. 시스템 뒤로가기(PopScope, 아래)만 [_exitToHome]을 탄다.
                     onPressed: () => context.go('/home'),
                   ),
                   Expanded(
@@ -324,6 +358,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
