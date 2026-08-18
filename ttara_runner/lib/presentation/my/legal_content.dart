@@ -16,6 +16,11 @@ const _placeholderEmailJa = 'ybgcomybg@gmail.com';
 const _placeholderContact = '김보림';
 const _placeholderContactEn = 'Borim Kim';
 const _placeholderContactJa = 'キム・ボリム';
+const _placeholderBizRegNo = '445-88-03590';
+const _placeholderMailOrderNo = '2026-용인수지-2956';
+const _placeholderAddress = '경기도 용인시 수지구 광교마을로 83, 5층(상현동)';
+const _placeholderAddressEn = '5F, 83, Gwanggyomaeul-ro, Suji-gu, Yongin-si, Gyeonggi-do, Republic of Korea';
+const _placeholderAddressJa = '大韓民国 京畿道 龍仁市 水枝区 光教マウル路 83, 5階';
 const _placeholderDate = '2026년 08월 11일';
 const _placeholderDateEn = 'August 11, 2026';
 const _placeholderDateJa = '2026年08月11日';
@@ -158,10 +163,14 @@ final _termsKo = <LegalSection>[
         '3. 협의로 분쟁이 해결되지 않는 경우 민사소송법 등 관련 법령에 따른 관할 법원에 소를 제기할 수 있습니다.',
   ),
   (
-    '제12조 (문의)',
-    '서비스 이용 및 본 약관과 관련한 문의는 아래 연락처를 통하여 접수할 수 있습니다.\n\n'
+    '제12조 (사업자 정보 및 문의)',
+    '「전자상거래 등에서의 소비자보호에 관한 법률」에 따라 통신판매업자의 신원 정보를 아래와 같이 안내합니다.\n\n'
         '서비스명: 쉐도잉랩\n'
-        '사업자/개발자명: $_placeholderCompany\n'
+        '상호(사업자/개발자명): $_placeholderCompany\n'
+        '대표자: $_placeholderContact\n'
+        '사업자등록번호: $_placeholderBizRegNo\n'
+        '통신판매업 신고번호: $_placeholderMailOrderNo\n'
+        '사업장 주소: $_placeholderAddress\n'
         '문의 이메일: $_placeholderEmail',
   ),
   ('부칙', '본 약관은 $_placeholderDate부터 시행합니다.'),
@@ -412,10 +421,15 @@ final _termsEn = <LegalSection>[
         'competent jurisdiction under the Civil Procedure Act and other applicable law.',
   ),
   (
-    'Article 12 (Contact)',
-    'Inquiries about using the Service or these Terms may be directed to the contact below.\n\n'
+    'Article 12 (Business Information and Contact)',
+    'Under Korean e-commerce consumer protection law, we disclose the following mail-order business '
+        'identification information.\n\n'
         'Service name: ShadowingLab\n'
         'Business/Developer: $_placeholderCompanyEn\n'
+        'Representative: $_placeholderContactEn\n'
+        'Business registration number: $_placeholderBizRegNo\n'
+        'Mail-order business registration number: $_placeholderMailOrderNo\n'
+        'Business address: $_placeholderAddressEn\n'
         'Contact email: $_placeholderEmailEn',
   ),
   ('Addendum', 'These Terms take effect as of $_placeholderDateEn.'),
@@ -667,10 +681,14 @@ final _termsJa = <LegalSection>[
         '3. 協議により紛争が解決しない場合、民事訴訟法等関連法令に定める管轄裁判所に訴えを提起することができます。',
   ),
   (
-    '第12条（お問い合わせ）',
-    '本サービスの利用および本規約に関するお問い合わせは、以下の連絡先までご連絡ください。\n\n'
+    '第12条（事業者情報およびお問い合わせ）',
+    '韓国の電子商取引消費者保護法に基づき、通信販売業者情報を以下のとおり案内します。\n\n'
         'サービス名：シャドーイングラボ\n'
         '事業者/開発者名：$_placeholderCompanyJa\n'
+        '代表者：$_placeholderContactJa\n'
+        '事業者登録番号：$_placeholderBizRegNo\n'
+        '通信販売業申告番号：$_placeholderMailOrderNo\n'
+        '事業所住所：$_placeholderAddressJa\n'
         'お問い合わせメール：$_placeholderEmailJa',
   ),
   ('附則', '本規約は$_placeholderDateJaから施行します。'),
