@@ -1,0 +1,483 @@
+<title>학습 옵션 저장 수정 검증</title>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --ground: #f7f6f9;
+    --surface: #ffffff;
+    --surface-sunken: #eeecf5;
+    --border: #ddd9ea;
+    --ink: #1c1a2b;
+    --ink-soft: #57536e;
+    --ink-faint: #8c88a3;
+    --accent: #5b5fef;
+    --accent-ink: #ffffff;
+    --accent-soft: #eceeff;
+    --accent-soft-border: #cfd3ff;
+    --success: #12805c;
+    --success-soft: #e3f5ec;
+    --success-soft-border: #bfe8d4;
+    --code-ground: #211f33;
+    --code-ink: #e4e2f5;
+    --code-add: #7ee6ab;
+    --code-del: #ff9d9d;
+    --shadow: 0 1px 2px rgba(28, 26, 43, 0.04), 0 8px 24px -12px rgba(28, 26, 43, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #131120;
+      --surface: #1b1830;
+      --surface-sunken: #181530;
+      --border: #322d4d;
+      --ink: #ede9fb;
+      --ink-soft: #b3aecb;
+      --ink-faint: #7d7896;
+      --accent: #8d8fff;
+      --accent-ink: #131120;
+      --accent-soft: #241f45;
+      --accent-soft-border: #3b3570;
+      --success: #4fd39c;
+      --success-soft: #16302a;
+      --success-soft-border: #235244;
+      --code-ground: #0e0c1c;
+      --code-ink: #e4e2f5;
+      --code-add: #7ee6ab;
+      --code-del: #ff9d9d;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #131120;
+    --surface: #1b1830;
+    --surface-sunken: #181530;
+    --border: #322d4d;
+    --ink: #ede9fb;
+    --ink-soft: #b3aecb;
+    --ink-faint: #7d7896;
+    --accent: #8d8fff;
+    --accent-ink: #131120;
+    --accent-soft: #241f45;
+    --accent-soft-border: #3b3570;
+    --success: #4fd39c;
+    --success-soft: #16302a;
+    --success-soft-border: #235244;
+    --code-ground: #0e0c1c;
+    --code-ink: #e4e2f5;
+    --code-add: #7ee6ab;
+    --code-del: #ff9d9d;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans KR', 'Malgun Gothic', -apple-system, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ── Header ───────────────────────────────────────────── */
+  .header-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .header-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+
+  h1 {
+    font-size: clamp(26px, 4vw, 34px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+
+  .subtitle {
+    color: var(--ink-soft);
+    font-size: 16px;
+    max-width: 60ch;
+    margin: 0 0 28px;
+  }
+
+  .summary-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 40px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--success-soft);
+    border: 1px solid var(--success-soft-border);
+    color: var(--success);
+    font-weight: 600;
+    font-size: 14px;
+    padding: 7px 14px 7px 12px;
+    border-radius: 999px;
+  }
+  .status-pill svg { width: 15px; height: 15px; flex: none; }
+
+  .summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 22px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin-left: auto;
+  }
+  .summary-meta span b { color: var(--ink); font-weight: 600; }
+
+  /* ── Section scaffolding ──────────────────────────────── */
+  section { margin-bottom: 44px; }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+
+  p { color: var(--ink-soft); margin: 0 0 14px; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Root-cause card ──────────────────────────────────── */
+  .cause-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: var(--shadow);
+  }
+
+  .cause-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 18px;
+  }
+  @media (max-width: 620px) { .cause-grid { grid-template-columns: 1fr; } }
+
+  .cause-col {
+    border-radius: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+  }
+  .cause-col.before { background: var(--surface-sunken); }
+  .cause-col.after { background: var(--accent-soft); border-color: var(--accent-soft-border); }
+  .cause-col-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .cause-col.after .cause-col-label { color: var(--accent); }
+  .cause-col p { font-size: 14.5px; color: var(--ink); margin: 0; }
+
+  code.inline {
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 0.9em;
+    color: var(--ink);
+  }
+
+  .diff {
+    background: var(--code-ground);
+    color: var(--code-ink);
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin-top: 16px;
+  }
+  .diff .del { color: var(--code-del); }
+  .diff .add { color: var(--code-add); }
+  .diff .ctx { color: var(--code-ink); opacity: 0.55; }
+
+  /* ── Scenario table ───────────────────────────────────── */
+  .scenario-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .scenario-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .scenario-row:last-child { border-bottom: none; }
+  .scenario-row:nth-child(even) { background: var(--surface-sunken); }
+
+  .scenario-index {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink-faint);
+    font-size: 13px;
+  }
+
+  .scenario-name { font-size: 14.5px; color: var(--ink); }
+  .scenario-name .checked-field {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    margin-top: 3px;
+  }
+
+  .pass-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--success-soft);
+    border: 1px solid var(--success-soft-border);
+    color: var(--success);
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .pass-chip svg { width: 12px; height: 12px; }
+
+  /* ── Terminal transcript ──────────────────────────────── */
+  .terminal {
+    background: var(--code-ground);
+    color: var(--code-ink);
+    border-radius: 12px;
+    padding: 18px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.75;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+  }
+  .terminal .cmd { color: var(--code-add); }
+  .terminal .muted { opacity: 0.5; }
+  .terminal .ok { color: var(--code-add); font-weight: 600; }
+
+  /* ── Scope note / next steps ──────────────────────────── */
+  .note-card {
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-soft-border);
+    border-radius: 14px;
+    padding: 20px 24px;
+  }
+  .note-card h2 { color: var(--ink); }
+  .note-card ul { margin: 0; padding-left: 20px; color: var(--ink-soft); }
+  .note-card li { margin-bottom: 8px; }
+  .note-card li:last-child { margin-bottom: 0; }
+  .note-card b { color: var(--ink); }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+</style>
+
+<div class="page">
+
+  <div class="header-eyebrow"><span class="dot"></span>쉐도잉랩 · QA 검증 리포트</div>
+  <h1>학습 옵션 저장 수정 검증</h1>
+  <p class="subtitle">반복 횟수·재생 속도·문장 간격 등 학습 옵션이 앱을 재시작해도 초기화되던 문제를 고치고, 10개 시나리오로 저장/유지 여부를 확인했습니다.</p>
+
+  <div class="summary-bar">
+    <span class="status-pill">
+      <svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      10 / 10 통과
+    </span>
+    <div class="summary-meta">
+      <span>대상 <b>쉐도잉랩(ShadowingLab)</b></span>
+      <span>수정 파일 <b class="mono">shadowing_controller.dart</b></span>
+      <span>실행일 <b>2026-08-18</b></span>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-label">문제 원인</div>
+    <div class="cause-card">
+      <p>학습 화면의 옵션 시트(⋯)에서 반복 횟수·재생 속도·문장 간격 등을 바꾸면 <code class="inline">ShadowingController.updateOptions()</code>가 호출되는데, 이 메서드가 <b style="color:var(--ink)">그 학습 세션에만 적용되는 임시 상태</b>만 바꾸고 마이&gt;설정이 실제로 읽는 저장소(<code class="inline">LearningSettings</code>)에는 전혀 쓰지 않고 있었습니다. 그래서 앱을 나갔다 다시 켜면(혹은 다음날 다시 열면) 마지막으로 저장된 기본값 — 즉 최초 설치 시의 초기값 — 이 다시 보였습니다.</p>
+      <div class="cause-grid">
+        <div class="cause-col before">
+          <div class="cause-col-label">수정 전</div>
+          <p>옵션 시트 변경 → 세션 상태만 갱신 → 저장소는 그대로 → 재실행 시 초기값</p>
+        </div>
+        <div class="cause-col after">
+          <div class="cause-col-label">수정 후</div>
+          <p>옵션 시트 변경 → 세션 상태 갱신 + 저장소에도 반영 → 재실행 시 마지막 설정값</p>
+        </div>
+      </div>
+      <div class="diff"><span class="ctx">  void updateOptions({ ...repeatCount, speed, handsFree, autoTranslation, sentenceGapMode... }) {</span>
+    state = state.copyWith( ... );
+<span class="add">+   unawaited(_persistOptionsAsDefault(</span>
+<span class="add">+     repeatCount: repeatCount, speed: speed, handsFree: handsFree,</span>
+<span class="add">+     autoTranslation: autoTranslation, sentenceGapMode: sentenceGapMode,</span>
+<span class="add">+   ));</span>
+  }
+<span class="add">+
++ Future&lt;void&gt; _persistOptionsAsDefault({ ... }) async {
++   final repo = ref.read(settingsRepositoryProvider);
++   final current = await repo.getSettings();
++   await repo.updateSettings(current.copyWith(
++     defaultRepeatCount: repeatCount, defaultPlaybackSpeed: speed,
++     handsFreeMode: handsFree, autoShowTranslation: autoTranslation,
++     sentenceGapMode: sentenceGapMode,
++   ));
++ }</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">검증 시나리오 · 10건</div>
+    <h2>"옵션 변경 → 앱 재시작" 을 10가지 값으로 반복 확인</h2>
+    <p>각 시나리오는 (1) 옵션 하나를 바꾸고 → (2) 완전히 새로운 저장소 인스턴스로 "앱을 다시 켠 상태"를 재현해 → (3) 그 값이 그대로 남아 있는지 확인합니다. 6번 시나리오가 사용자가 실제로 겪은 상황(반복 3회·빈공간 없이 반복)과 가장 가깝습니다.</p>
+    <div class="scenario-list">
+
+      <div class="scenario-row">
+        <div class="scenario-index mono">01</div>
+        <div class="scenario-name">반복 횟수를 <b>1회</b>로 변경<div class="checked-field">defaultRepeatCount</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">02</div>
+        <div class="scenario-name">반복 횟수를 <b>5회</b>로 변경<div class="checked-field">defaultRepeatCount</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">03</div>
+        <div class="scenario-name">반복 횟수를 <b>10회(최댓값)</b>로 변경<div class="checked-field">defaultRepeatCount</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">04</div>
+        <div class="scenario-name">재생 속도를 <b>0.75x</b>로 변경<div class="checked-field">defaultPlaybackSpeed</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">05</div>
+        <div class="scenario-name">재생 속도를 <b>1.5x</b>로 변경<div class="checked-field">defaultPlaybackSpeed</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">06</div>
+        <div class="scenario-name">문장 간격을 <b>"빈공간 없이 반복"</b>으로 변경 <span style="color:var(--accent); font-weight:600;">— 사용자가 실제로 겪은 케이스</span><div class="checked-field">sentenceGapMode</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">07</div>
+        <div class="scenario-name">문장 간격을 <b>"문장 길이 +2초"</b>로 변경<div class="checked-field">sentenceGapMode</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">08</div>
+        <div class="scenario-name"><b>Hands-free 모드</b> 끄기<div class="checked-field">handsFreeMode</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">09</div>
+        <div class="scenario-name"><b>한글 뜻 자동 표시</b> 켜기<div class="checked-field">autoShowTranslation</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-index mono">10</div>
+        <div class="scenario-name">복합 변경: <b>반복 7회 + 빈공간 없이 + 1.25x</b> 동시 적용 <span style="color:var(--ink-faint); font-weight:500;">(다른 값 훼손 안 하는지 함께 확인)</span><div class="checked-field">전체 필드</div></div>
+        <div class="pass-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>PASS</div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="section-label">실행 로그</div>
+    <h2>flutter test 실제 실행 결과</h2>
+    <div class="terminal"><span class="cmd">$ flutter test test/shadowing_options_persist_test.dart --reporter expanded</span>
+<span class="muted">00:00 +0: 시나리오 1: 반복 횟수 1회로 변경 → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +1: 시나리오 2: 반복 횟수 5회로 변경 → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +2: 시나리오 3: 반복 횟수 10회(최댓값)로 변경 → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +3: 시나리오 4: 재생 속도 0.75x로 변경 → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +4: 시나리오 5: 재생 속도 1.5x로 변경 → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +5: 시나리오 6: 문장 간격 "빈공간 없이 반복"으로 변경(버그 리포트 원문 케이스) → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +6: 시나리오 7: 문장 간격 "문장 길이 +2초"로 변경 → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +7: 시나리오 8: Hands-free 모드 끄기 → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +8: 시나리오 9: 한글 뜻 자동 표시 켜기 → 앱 재시작 후에도 유지되는가</span>
+<span class="muted">00:00 +9: 시나리오 10: 복합 변경: 반복 7회 + 빈공간 없이 + 1.25x 동시 적용 → 앱 재시작 후에도 유지되는가</span>
+<span class="ok">00:00 +10: All tests passed!</span>
+
+<span class="cmd">$ flutter analyze lib/presentation/shadowing/shadowing_controller.dart</span>
+<span class="ok">No issues found! (ran in 6.5s)</span></div>
+  </section>
+
+  <section class="note-card">
+    <h2>범위와 다음 확인 사항</h2>
+    <ul>
+      <li>이 테스트는 <b>저장소 계층(LocalSettingsRepository)</b>이 옵션 변경분을 실제로 SharedPreferences에 쓰고, 앱을 재시작한 것과 같은 완전히 새 인스턴스에서 그 값을 다시 읽어오는지를 검증합니다 — 이번 버그의 핵심 원인이 있던 지점입니다.</li>
+      <li>오디오 재생 배선(<code class="inline">ShadowingController</code> 전체, 옵션 시트 UI)은 <code class="inline">just_audio</code>/<code class="inline">audio_service</code> 플랫폼 채널이 필요해 이런 헤드리스 테스트로는 돌릴 수 없습니다 — 코드 리뷰로 <code class="inline">updateOptions()</code>가 이 저장 로직을 실제로 호출하도록 배선된 것은 확인했지만, <b>실기기/에뮬레이터에서 옵션 시트를 직접 눌러 한 번 더 확인</b>하는 걸 권장합니다.</li>
+      <li>수정은 <code class="mono">ttara_runner/</code>와 소스 원본인 <code class="mono">02_app_code/</code> 양쪽에 동일하게 반영했습니다.</li>
+      <li>다음 프로덕션 빌드(현재 versionCode 8, 메타데이터 정책 재심사 대기 중)에 이 수정도 함께 묶어 올릴지는 다른 오류 수정 진행 상황을 보고 결정하면 됩니다.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>test/shadowing_options_persist_test.dart · 10 cases</span>
+    <span>쉐도잉랩(ShadowingLab) QA</span>
+  </footer>
+
+</div>

@@ -211,8 +211,6 @@ shadowing,speaking,pronunciation,listening,dictation,esl,fluency,free,practice,r
 
 리스닝에서 스피킹으로, 오늘 가진 영상 하나로 시작해보세요.
 지금 다운로드하고 첫 쉐도잉을 경험해보세요.
-
-#쉐도잉 #섀도잉 #영어회화 #영어공부 #영어듣기 #리스닝 #스피킹 #영어쉐도잉 #무료영어앱
 ```
 
 ### 데이터 보안 (Data Safety)

@@ -681,9 +681,10 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     }
   }
 
-  /// 학습 옵션 시트에서 바꾸는 값은 **이번 세션에만** 적용된다(다음에 열 때의 기본값은
-  /// 마이 > 설정(#12)에서 따로 관리 — 기존 반복 횟수/속도/Hands-free와 동일한 원칙을
-  /// 새 [sentenceGapMode]에도 그대로 적용).
+  /// 학습 옵션 시트에서 바꾼 값은 이번 세션에 곧바로 적용되는 동시에, 다음에 새
+  /// 학습을 시작할 때의 기본값으로도 저장된다(마이 > 설정(#12)의 "학습 기본값"과
+  /// 같은 저장소에 반영 — 2026-08-18: 실사용 피드백으로 세션 한정 적용을 폐기,
+  /// 매번 다시 설정해야 하는 번거로움을 없앴다).
   void updateOptions({
     int? repeatCount,
     double? speed,
@@ -698,6 +699,31 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       showTranslation: autoTranslation ?? state.showTranslation,
       sentenceGapMode: sentenceGapMode ?? state.sentenceGapMode,
     );
+    unawaited(_persistOptionsAsDefault(
+      repeatCount: repeatCount,
+      speed: speed,
+      handsFree: handsFree,
+      autoTranslation: autoTranslation,
+      sentenceGapMode: sentenceGapMode,
+    ));
+  }
+
+  Future<void> _persistOptionsAsDefault({
+    int? repeatCount,
+    double? speed,
+    bool? handsFree,
+    bool? autoTranslation,
+    SentenceGapMode? sentenceGapMode,
+  }) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    final current = await repo.getSettings();
+    await repo.updateSettings(current.copyWith(
+      defaultRepeatCount: repeatCount,
+      defaultPlaybackSpeed: speed,
+      handsFreeMode: handsFree,
+      autoShowTranslation: autoTranslation,
+      sentenceGapMode: sentenceGapMode,
+    ));
   }
 
   /// 한 문장씩 보기의 정지 버튼 — 자동 듣기↔말하기 루프를 즉시 멈춘다(반복 횟수는
