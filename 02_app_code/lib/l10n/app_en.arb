@@ -94,9 +94,11 @@
   "videoFallbackLabel": "Video",
   "pickedFileTitle": "You picked {fileName}",
   "@pickedFileTitle": { "placeholders": { "fileName": { "type": "String" } } },
-  "subtitleExplain": "If you have a subtitle file (SRT/VTT/SMI), you can study while reading along.\nNo subtitles? No problem — we'll automatically find the pauses and you can listen and repeat.",
+  "subtitleExplain": "If you have a subtitle file (SRT/VTT/SMI), you can study while reading along.\nNo subtitles? No problem — we'll automatically find the pauses and you can listen and repeat.\nSelect the subtitle file together with the video and we'll skip this question.",
   "chooseSubtitleFile": "Choose Subtitle File",
   "continueWithoutSubtitle": "Continue Without Subtitles",
+  "chooseSubtitleLanguageTitle": "Which language?",
+  "chooseSubtitleLanguageExplain": "This subtitle file contains multiple languages. Choose the one you want to study.",
   "cancelAndReselect": "Cancel and Choose Again",
   "whichFileType": "What kind of file is it?",
   "pickingFileTitle": "Checking your selected file",
@@ -249,6 +251,7 @@
   "sentenceRangeSingleLabel": "#{index}",
   "@sentenceRangeSingleLabel": { "placeholders": { "index": { "type": "int" } } },
   "noRecordsThisMonth": "No records this month",
+  "noRecordsThisDay": "No records this day",
 
   "previewPlaybackError": "Couldn't play the preview",
 
@@ -281,6 +284,7 @@
 
   "noSubtitleListenPrompt": "No subtitles — just listen and repeat",
   "showTranslationLabel": "Show Translation",
+  "showOriginalTextLabel": "Show English",
   "needsReviewBadge": "Needs Review",
   "noSubtitleSegmentLabel": "(No subtitles · listen and repeat)",
 

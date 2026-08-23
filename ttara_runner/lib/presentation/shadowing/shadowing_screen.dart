@@ -97,7 +97,19 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
       if (!adsRemoved && nextDone > prevDone && nextDone % 20 == 0 && !next.isSessionFullyDone) {
         adService.showInterstitial();
       }
-      if (!_navigatedToSummary && next.isSessionFullyDone && (prev?.isSessionFullyDone ?? false) == false) {
+      // **2026-08-23 버그 수정**: 이미 100% 완료된 파일을 다시 열면(예: 홈에서 재진입),
+      // 초기 상태(segments 비어있음, isSessionFullyDone=false)에서 로딩이 끝난
+      // 상태(이미 전부 완료됨, isSessionFullyDone=true)로 넘어가는 "false→true 전환"이
+      // 실제 완주 순간과 똑같이 감지돼 자동으로 요약 화면으로 튕겨버렸다 — 요약 화면의
+      // "이어서 복습하기"를 눌러도 새 ShadowingScreen 인스턴스가 다시 만들어지며 같은
+      // 전환이 또 발생해, 완료한 파일은 사실상 영원히 다시 들어갈 수 없었다(사용자 실사용
+      // 보고). `prev`가 이미 문장을 로딩해둔(=이번 방문에서 실제로 진행 중이던) 상태일
+      // 때만 "방금 완주했다"로 인정하도록, 초기 로딩 시점의 전환은 제외한다.
+      final wasAlreadyLoadedThisVisit = prev?.segments.isNotEmpty ?? false;
+      if (!_navigatedToSummary &&
+          next.isSessionFullyDone &&
+          wasAlreadyLoadedThisVisit &&
+          (prev?.isSessionFullyDone ?? false) == false) {
         _navigatedToSummary = true;
         // 2026-08-10: 통계 누적 자체는 이제 문장 단위로 실시간 처리된다
         // (StatsRepository.recordProgress, ShadowingController._markSegmentCompleted)

@@ -122,8 +122,11 @@ class _WeekHeatmapRow extends StatelessWidget {
     final theme = Theme.of(context);
     final now = DateTime.now();
     return Row(
+      // 2026-08-23 버그 수정: i=0(맨 왼쪽)이 6일 전이고 오늘이 맨 오른쪽(마지막)에
+      // 오게 돼 있어서, "오늘 공부하면 왜 맨 뒤 칸부터 채워지냐"는 사용자 피드백이
+      // 있었다 — 오늘이 맨 앞(왼쪽)에 오고 과거로 갈수록 뒤로 가도록 순서를 뒤집는다.
       children: List.generate(7, (i) {
-        final day = now.subtract(Duration(days: 6 - i));
+        final day = now.subtract(Duration(days: i));
         final key = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
         final count = heatmap[key] ?? 0;
         final intensity = count == 0 ? 0.08 : (0.3 + (count / 20).clamp(0, 0.7));

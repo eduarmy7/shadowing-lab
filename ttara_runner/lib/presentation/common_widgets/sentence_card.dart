@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
@@ -49,53 +50,72 @@ class SentenceCard extends StatelessWidget {
   Widget _buildLearning(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    return Column(
+
+    // 문장마다 고유 번호 표시 — 긴 콘텐츠(예: 책 한 권 1000문장 이상)에서 몇 번째
+    // 문장인지 문장 카드 자체에서 바로 확인 가능하게 한다(상단 "N / 전체" 진행률과 별개로,
+    // 스와이프로 오갈 때도 항상 문장 옆에 붙어있어야 하는 정보라 카드 안에 둔다).
+    final header = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 문장마다 고유 번호 표시 — 긴 콘텐츠(예: 책 한 권 1000문장 이상)에서 몇 번째
-        // 문장인지 문장 카드 자체에서 바로 확인 가능하게 한다(상단 "N / 전체" 진행률과 별개로,
-        // 스와이프로 오갈 때도 항상 문장 옆에 붙어있어야 하는 정보라 카드 안에 둔다).
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '#${segment.index + 1}',
-              style: AppTypography.caption.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (segment.flaggedByUser) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.flag, size: 14, color: theme.colorScheme.error),
-            ],
-          ],
+        Text(
+          '#${segment.index + 1}',
+          style: AppTypography.caption.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+        if (segment.flaggedByUser) ...[
+          const SizedBox(width: 6),
+          Icon(Icons.flag, size: 14, color: theme.colorScheme.error),
+        ],
+      ],
+    );
+
+    final noTextPlaceholder = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.hearing, size: 32, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(height: AppSpacing.xs),
-        segment.hasText
-            ? Text(
-                segment.text!,
-                textAlign: TextAlign.center,
-                style: AppTypography.sentence.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  // 최소 18sp ~ 최대 200%(48sp)까지 레이아웃 깨짐 없이 확대(Dynamic Type 대응).
-                  fontSize: (24 * fontScale).clamp(18.0, 48.0),
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.hearing, size: 32, color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    l10n.noSubtitleListenPrompt,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
+        Text(
+          l10n.noSubtitleListenPrompt,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
+    );
+
+    // **2026-08-22 여러 차례 수정 끝에 확정된 형태**: 처음엔 문장 아래 작은 접힌 줄로
+    // 번역을 보여줬는데 공간이 부족했고, 그다음엔 화면을 절반씩 나눠 영어+한글을
+    // 동시에 보여줬는데 그마저도 한 줄에 욱여넣느라 글자가 작았다(사용자 피드백:
+    // "글자가 너무 작아서 안 보여"). 최종적으로는 **영어/한글을 동시에 보여주지
+    // 않고, 버튼으로 완전히 전환**하기로 했다 — "한글 뜻 보기"를 누르면 화면 전체를
+    // 한글이 차지하고, "영어 자막 보기"를 누르면 다시 영어로 돌아간다. 어느 쪽이든
+    // `AutoSizeText`로 화면 전체 높이/너비를 활용해 여러 줄로 줄바꿈하며 가능한 한
+    // 크게 표시한다. 목록형(list) 화면엔 이 토글 자체가 없으므로("한 문장 보기에서만")
+    // 번역은 여전히 학습형(learning)에만 나온다.
+    final showingTranslation = showTranslation && segment.translation != null;
+    final mainText = !segment.hasText
+        ? noTextPlaceholder
+        : AutoSizeText(
+            showingTranslation ? segment.translation! : segment.text!,
+            textAlign: TextAlign.center,
+            maxLines: 8,
+            minFontSize: showingTranslation ? 14 : 16,
+            style: AppTypography.sentence.copyWith(
+              color: showingTranslation ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.onSurface,
+              // 최소 20sp ~ 최대 56sp: 짧은 문장은 크게, 긴 문장은 AutoSizeText가 줄바꿈하며 줄인다.
+              fontSize: (30 * fontScale).clamp(20.0, 56.0),
+            ),
+          );
+
+    return Column(
+      mainAxisSize: MainAxisSize.max,
+      children: [
+        header,
+        const SizedBox(height: AppSpacing.xs),
+        Expanded(child: Center(child: mainText)),
         if (segment.translation != null) ...[
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           InkWell(
             onTap: onToggleTranslation,
             borderRadius: BorderRadius.circular(8),
@@ -105,14 +125,10 @@ class SentenceCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    showTranslation ? segment.translation! : l10n.showTranslationLabel,
+                    showingTranslation ? l10n.showOriginalTextLabel : l10n.showTranslationLabel,
                     style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                  Icon(
-                    showTranslation ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                    size: 18,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  Icon(Icons.swap_vert, size: 18, color: theme.colorScheme.onSurfaceVariant),
                 ],
               ),
             ),

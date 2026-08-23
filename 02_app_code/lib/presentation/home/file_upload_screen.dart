@@ -43,6 +43,7 @@ class FileUploadScreen extends ConsumerWidget {
           UploadPhase.picking => const _PickingView(),
           UploadPhase.uploading => _UploadingView(state: state),
           UploadPhase.awaitingSubtitleDecision => _SubtitleDecisionView(state: state),
+          UploadPhase.awaitingLanguageDecision => _LanguageDecisionView(state: state),
           UploadPhase.idle || UploadPhase.error => _PickerView(state: state, ref: ref),
         },
       ),
@@ -242,6 +243,61 @@ class _SubtitleDecisionView extends ConsumerWidget {
           child: TextButton(
             onPressed: () => _withoutSubtitle(ref),
             child: Text(l10n.continueWithoutSubtitle),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Center(
+          child: TextButton(
+            onPressed: () => ref.read(uploadControllerProvider.notifier).reset(),
+            child: Text(l10n.cancelAndReselect),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// **2026-08-22 추가** — 자막 파일에 언어 트랙이 여러 개 있을 때만 노출(`UploadController.
+/// _detectLanguageThenRegister` 참고). 다운로드한 SMI 자막 다수가 한국어 트랙을 먼저
+/// 담고 있어, 물어보지 않고 첫 트랙을 쓰면 영어 쉐도잉 앱에 한국어 문장이 나오는
+/// 문제가 있었다 — 사용자가 직접 원하는 언어를 고르게 한다.
+///
+/// **실제 유튜브 다운로드 SMI로 검증하며 발견**: 유튜브 자동 번역 자막이 포함된 SMI는
+/// 트랙이 2~3개가 아니라 **30개 이상**(전체 지원 언어)인 경우가 흔하다 — 다른 화면들
+/// (`_SubtitleDecisionView` 등)처럼 스크롤 없는 `Column`으로 만들면 화면 밖으로
+/// 넘쳐서(overflow) 뒷부분 언어를 고를 수 없다. 그래서 이 화면만 제목/설명은 고정,
+/// 목록만 `Expanded` + `ListView`로 스크롤되게 만든다.
+class _LanguageDecisionView extends ConsumerWidget {
+  final UploadState state;
+  const _LanguageDecisionView({required this.state});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.chooseSubtitleLanguageTitle, style: theme.textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          l10n.chooseSubtitleLanguageExplain,
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Expanded(
+          child: ListView.separated(
+            itemCount: state.detectedLanguageTracks.length,
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            itemBuilder: (context, i) {
+              final track = state.detectedLanguageTracks[i];
+              return _SourceOption(
+                icon: Icons.language,
+                label: track.label,
+                onTap: () =>
+                    ref.read(uploadControllerProvider.notifier).chooseLanguageAndRegister(track.classId),
+              );
+            },
           ),
         ),
         const SizedBox(height: AppSpacing.sm),

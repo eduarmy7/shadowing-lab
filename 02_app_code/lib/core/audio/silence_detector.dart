@@ -1,3 +1,6 @@
+import 'dart:collection';
+import 'dart:math' as math;
+
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:flutter/foundation.dart';
 
@@ -20,6 +23,16 @@ import '../../domain/entities/sentence_segment.dart';
 /// 때는 이 클래스를 아예 호출하지 않고 기존 시뮬레이션 경로를 그대로 쓴다.
 class SilenceDetector {
   const SilenceDetector();
+
+  /// **2026-08-24**: "최근 피크"를 지수감쇠 엔벨로프 대신 슬라이딩 윈도우 최댓값으로
+  /// 계산한다 — 실사용 배경음악 파일 진단 결과(로그: ratio<=.35인 샘플이 3889개 중
+  /// 454개나 있었는데도 결과는 여전히 1문장), 지수감쇠 방식은 진폭이 한 번 떨어지면
+  /// "최근 피크" 자체가 그 낮아진 값 쪽으로 1~2샘플 만에 다시 수렴해버려, 무음
+  /// 후보 샘플들이 [AppConstants.minPauseMs](350ms)만큼 **연속으로** 이어지지
+  /// 못하고 흩어졌던 게 원인이었다. 슬라이딩 윈도우 최댓값은 이 윈도우(ms) 안에
+  /// 조금 전 큰 소리가 남아있는 한 "최근 피크"가 그대로 유지되므로, 윈도우보다
+  /// 짧은 쉼 구간이라면 쉼 내내 낮은 비율이 안정적으로 이어진다.
+  static const int _recentPeakWindowMs = 2500;
 
   /// [localFilePath]는 실제 기기 파일 경로여야 한다. 오디오가 전혀 없거나(길이 0)
   /// 파형 전체가 무음이라 문장 경계를 하나도 못 찾으면 빈 세그먼트 리스트를 반환한다 —
@@ -53,15 +66,28 @@ class SilenceDetector {
     if (durationMs <= 0) return const SilenceDetectionResult(segments: [], amplitudes: [], durationMs: 0);
 
     final extractSw = Stopwatch()..start();
-    final amplitudes = await _extractAmplitudes(localFilePath, durationMs);
+    final rawAmplitudes = await _extractAmplitudes(localFilePath, durationMs);
     extractSw.stop();
-    debugPrint('[SilenceDetector] amplitudes.length=${amplitudes.length}'
-        '${amplitudes.isNotEmpty ? ' max=${amplitudes.reduce((a, b) => a > b ? a : b)}' : ''}'
+    final rawMax = rawAmplitudes.isEmpty ? 0.0 : rawAmplitudes.reduce((a, b) => a > b ? a : b);
+    debugPrint('[SilenceDetector] amplitudes.length=${rawAmplitudes.length}'
+        '${rawAmplitudes.isNotEmpty ? ' max=$rawMax' : ''}'
         ' (extraction took ${extractSw.elapsedMilliseconds}ms = '
         '${(extractSw.elapsedMilliseconds / 1000 / 60).toStringAsFixed(1)}min)');
-    if (amplitudes.isEmpty) {
+    if (rawAmplitudes.isEmpty) {
       return SilenceDetectionResult(segments: const [], amplitudes: const [], durationMs: durationMs);
     }
+
+    // **2026-08-24 버그 수정**: 원본(raw) 진폭을 그대로 [SilenceDetectionResult.amplitudes]로
+    // 내보내면, 아주 조용하게 녹음된 파일(실사용 사례 — 파일 전체 최댓값이 0.04밖에 안 됨)은
+    // 문장 구간별 파형 표시([WaveformPlayer]의 `_normalizeToFullRange`, 절대값 0.02 이하는
+    // "거의 무음"으로 보고 증폭을 안 함)에서 실제 대사가 있는 구간도 납작한 무음처럼
+    // 보이는 버그로 이어졌다(사용자 스크린샷으로 확인 — "음성이 있는데 파동이 없다"). 그
+    // 0.02 컷오프는 원래 파일마다 절대 음량이 다르다는 걸 감안하지 못했던 것 — 여기서
+    // 파일 전체 최댓값 기준 0~1로 미리 정규화해 내보내면, 그 컷오프가 파일이 얼마나
+    // 조용하게 녹음됐든 항상 "이 파일 최대 음량 대비 2%"라는 일관된 의미를 갖게 된다.
+    // 무음 감지(`_segmentFromAmplitudes`) 자체는 이미 내부에서 파일 자체 최댓값 기준
+    // 비율로 계산하므로 이 정규화로 판정 로직이 달라지지는 않는다.
+    final amplitudes = rawMax > 0 ? [for (final a in rawAmplitudes) a / rawMax] : rawAmplitudes;
 
     final result = _segmentFromAmplitudes(
       mediaId: mediaId,
@@ -144,14 +170,37 @@ class SilenceDetector {
     if (maxAmp <= 0) return const []; // 파형 전체가 완전 무음 — 발화 자체가 없음
 
     final msPerSample = durationMs / amplitudes.length;
-    final threshold = maxAmp * AppConstants.silenceAmplitudeRatio;
+    final globalThreshold = maxAmp * AppConstants.silenceAmplitudeRatio;
     final minPauseSamples = (AppConstants.minPauseMs / msPerSample).ceil().clamp(1, amplitudes.length);
 
-    // 1) 진폭이 threshold 이하로 minPauseSamples 이상 이어지는 무음 구간을 찾는다.
+    // **2026-08-23 추가, 2026-08-24 재작성 — 배경음악이 계속 깔린 영상 대응**:
+    // 사용자 실사용 사례 — 배경음악이 있는 6분 반짜리 영상이 무음을 하나도 못
+    // 찾고 통째로 문장 1개로 잡혔다. 파일 전체 최대치 대비 고정 비율([globalThreshold])
+    // 만으로는, 대사가 쉬는 구간에도 배경음악이 계속 나오면 그 음량이 절대 그
+    // 기준 밑으로 안 떨어진다. 그래서 "방금까지 들리던 소리 크기(최근 피크)" 대비
+    // 상대적으로 조용해지는 지점도 무음 후보로 함께 인정한다 — 절대적으로
+    // 조용하지 않아도(배경음악은 계속 나와도) 직전 대사보다 확실히 작아지면 문장
+    // 사이 쉼일 가능성이 높다는 전제. [_recentPeakWindowMs] 주석 참고 — 첫 시도였던
+    // 지수감쇠 엔벨로프는 실측 결과 무음 후보 샘플이 있어도(454/3889) 전부
+    // `minPauseSamples` 미만의 짧은 조각으로 흩어져 경계를 못 만들었다. 슬라이딩
+    // 윈도우 최댓값으로 바꿔 "최근 피크"가 윈도우 동안 안정적으로 유지되게 한다.
+    final windowSamples = (_recentPeakWindowMs / msPerSample).round().clamp(1, amplitudes.length);
+    final envelope = _slidingWindowMax(amplitudes, windowSamples);
+
+    // 1) 진폭이 (전체 최대치 기준 OR 최근 피크 기준) threshold 이하로 minPauseSamples
+    //    이상 이어지는 무음 구간을 찾는다 — 둘 중 하나만 만족해도 무음 후보.
+    // **2026-08-24**: 상대 기준(`isRelativelyQuiet`)은 "절대적으로도 어느 정도
+    // 조용함"을 AND로 추가 요구한다 — [AppConstants.localSilenceAbsoluteCeiling]
+    // 주석 참고. 이게 없으면 그냥 직전 단어보다 조용하게 말한 진짜 단어가 통째로
+    // 무음 처리돼 사라지는 실사용 버그가 있었다.
     final silenceRanges = <List<int>>[];
     int? runStart;
     for (var i = 0; i < amplitudes.length; i++) {
-      if (amplitudes[i] <= threshold) {
+      final isGloballyQuiet = amplitudes[i] <= globalThreshold;
+      final isRelativelyQuiet = envelope[i] > 0 &&
+          amplitudes[i] <= envelope[i] * AppConstants.localSilenceRatio &&
+          amplitudes[i] <= maxAmp * AppConstants.localSilenceAbsoluteCeiling;
+      if (isGloballyQuiet || isRelativelyQuiet) {
         runStart ??= i;
       } else if (runStart != null) {
         if (i - runStart >= minPauseSamples) silenceRanges.add([runStart, i]);
@@ -196,16 +245,40 @@ class SilenceDetector {
       merged.last[1] = tail[1];
     }
 
+    // 4) 시작/끝에 여유(패딩)를 준다 — [AppConstants.sentenceBoundaryPaddingMs] 주석
+    //    참고. 인접 문장 사이 무음 구간이 항상 minPauseMs 이상이라 겹칠 걱정 없다.
+    const padding = AppConstants.sentenceBoundaryPaddingMs;
     return [
       for (var i = 0; i < merged.length; i++)
         SentenceSegment(
           id: '$mediaId-seg-$i',
           mediaId: mediaId,
           index: i,
-          startMs: (merged[i][0] * msPerSample).round(),
-          endMs: i == merged.length - 1 ? durationMs : (merged[i][1] * msPerSample).round(),
+          startMs: math.max(0, (merged[i][0] * msPerSample).round() - padding),
+          endMs: i == merged.length - 1
+              ? durationMs
+              : math.min(durationMs, (merged[i][1] * msPerSample).round() + padding),
         ),
     ];
+  }
+
+  /// 각 인덱스 i에 대해 `[i - window + 1, i]`(과거 방향, 미래를 안 보는 causal 창) 안의
+  /// 최댓값을 O(n)에 계산한다 — 단조 감소 데크: 큐 뒤쪽부터 자기보다 작은 값을 모두
+  /// 버리고 자신을 넣으면, 큐의 맨 앞이 항상 현재 창의 최댓값 인덱스가 된다.
+  List<double> _slidingWindowMax(List<double> data, int window) {
+    final result = List<double>.filled(data.length, 0);
+    final deque = Queue<int>();
+    for (var i = 0; i < data.length; i++) {
+      while (deque.isNotEmpty && data[deque.last] <= data[i]) {
+        deque.removeLast();
+      }
+      deque.addLast(i);
+      if (deque.first <= i - window) {
+        deque.removeFirst();
+      }
+      result[i] = data[deque.first];
+    }
+    return result;
   }
 }
 

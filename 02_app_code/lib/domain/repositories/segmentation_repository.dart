@@ -27,8 +27,16 @@ abstract class SegmentationRepository {
   /// 저장소로 복사하는 동안의 로컬 디스크 I/O 진행률(#2 화면 원형 인디케이터용)이며,
   /// 사실상 즉시 끝나도 무방하다(스캐폴드에서는 짧게 시뮬레이션).
   ///
-  /// [subtitleFilePath]: 영상 + 자막(SRT/VTT) 업로드 시에만 값이 있다. 값이 있으면
+  /// [subtitleFilePath]: 영상 + 자막(SRT/VTT/SMI) 업로드 시에만 값이 있다. 값이 있으면
   /// [requestSegmentation]이 자막 파싱 경로를, 없으면 무음 감지 경로를 탄다.
+  ///
+  /// [subtitleLanguageClassId]: 자막이 여러 언어 트랙을 담은 SMI(`detectSamiLanguageTracks`
+  /// 참고)일 때, 사용자가 고른 언어 트랙의 `Class` 값. 단일 언어 자막이면 null.
+  ///
+  /// [translationLanguageClassId]: **2026-08-22 추가** — 다국어 SMI에서 학습 언어와
+  /// 별개로 "한글 뜻" 표시에 쓸 트랙의 `Class` 값(`findKoreanLanguageClassId` 참고).
+  /// 단일 언어 자막이거나 한국어 트랙이 따로 없으면 null — 이 경우 [SentenceSegment.translation]은
+  /// 채워지지 않는다.
   ///
   /// [mediaId]: 보통은 비워두면 이 레포지토리가 새 id를 발급한다(일반 업로드 경로).
   /// "샘플로 체험하기"(홈 컨트롤러의 고정 sample-* id)처럼 재호출 시 같은 id를 재사용해야
@@ -37,6 +45,8 @@ abstract class SegmentationRepository {
     required String localFilePath,
     required String fileName,
     String? subtitleFilePath,
+    String? subtitleLanguageClassId,
+    String? translationLanguageClassId,
     String? mediaId,
     required void Function(double progress) onProgress,
   });

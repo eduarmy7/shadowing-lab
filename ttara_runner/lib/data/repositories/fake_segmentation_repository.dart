@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -60,6 +59,8 @@ class FakeSegmentationRepository implements SegmentationRepository {
     required String localFilePath,
     required String fileName,
     String? subtitleFilePath,
+    String? subtitleLanguageClassId,
+    String? translationLanguageClassId,
     String? mediaId,
     required void Function(double progress) onProgress,
   }) async {
@@ -78,6 +79,8 @@ class FakeSegmentationRepository implements SegmentationRepository {
       'localFilePath': localFilePath,
       'fileName': fileName,
       'subtitleFilePath': subtitleFilePath,
+      'subtitleLanguageClassId': subtitleLanguageClassId,
+      'translationLanguageClassId': translationLanguageClassId,
     });
     debugPrint('[registerLocalMedia] setJson done, mediaId=$resolvedMediaId');
     return resolvedMediaId;
@@ -103,6 +106,8 @@ class FakeSegmentationRepository implements SegmentationRepository {
       (decoded) => decoded as Map<String, dynamic>,
     );
     final subtitleFilePath = mediaMeta?['subtitleFilePath'] as String?;
+    final subtitleLanguageClassId = mediaMeta?['subtitleLanguageClassId'] as String?;
+    final translationLanguageClassId = mediaMeta?['translationLanguageClassId'] as String?;
     final localFilePath = mediaMeta?['localFilePath'] as String?;
 
     yield SegmentationJobStatus(
@@ -120,8 +125,13 @@ class FakeSegmentationRepository implements SegmentationRepository {
       // 최소한의 지연만 둔다.
       await Future.delayed(const Duration(milliseconds: 200));
       try {
-        final content = await File(subtitleFilePath).readAsString();
-        final cues = parseSubtitleFile(content, fileNameOrExt: subtitleFilePath);
+        final content = await readSubtitleFileAsText(subtitleFilePath);
+        final cues = parseSubtitleFile(
+          content,
+          fileNameOrExt: subtitleFilePath,
+          preferredLanguageClassId: subtitleLanguageClassId,
+          translationLanguageClassId: translationLanguageClassId,
+        );
         segments = [
           for (final cue in cues)
             SentenceSegment(
@@ -129,6 +139,7 @@ class FakeSegmentationRepository implements SegmentationRepository {
               mediaId: mediaId,
               index: cue.index,
               text: cue.text,
+              translation: cue.translation,
               startMs: cue.startMs,
               endMs: cue.endMs,
             ),

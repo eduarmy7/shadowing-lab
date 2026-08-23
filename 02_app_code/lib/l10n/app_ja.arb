@@ -94,9 +94,11 @@
   "videoFallbackLabel": "動画",
   "pickedFileTitle": "{fileName} を選択しました",
   "@pickedFileTitle": { "placeholders": { "fileName": { "type": "String" } } },
-  "subtitleExplain": "字幕ファイル（SRT/VTT/SMI）があれば、テキストを見ながら学習できます。\nなくても大丈夫です — 無音区間を自動で見つけて、聞いて真似する方式で進みます。",
+  "subtitleExplain": "字幕ファイル（SRT/VTT/SMI）があれば、テキストを見ながら学習できます。\nなくても大丈夫です — 無音区間を自動で見つけて、聞いて真似する方式で進みます。\n動画と一緒に字幕ファイルも選択すると、この質問はスキップされます。",
   "chooseSubtitleFile": "字幕ファイルを選択",
   "continueWithoutSubtitle": "字幕なしで続ける",
+  "chooseSubtitleLanguageTitle": "どの言語で見ますか？",
+  "chooseSubtitleLanguageExplain": "この字幕ファイルには複数の言語が含まれています。学習したい言語を選んでください。",
   "cancelAndReselect": "キャンセルして選び直す",
   "whichFileType": "どのファイルですか？",
   "pickingFileTitle": "選択したファイルを確認しています",
@@ -249,6 +251,7 @@
   "sentenceRangeSingleLabel": "{index}番",
   "@sentenceRangeSingleLabel": { "placeholders": { "index": { "type": "int" } } },
   "noRecordsThisMonth": "今月の記録はありません",
+  "noRecordsThisDay": "この日の記録はありません",
 
   "previewPlaybackError": "プレビューを再生できませんでした",
 
@@ -281,6 +284,7 @@
 
   "noSubtitleListenPrompt": "字幕なし、聞いて真似してみましょう",
   "showTranslationLabel": "訳を見る",
+  "showOriginalTextLabel": "英語字幕を見る",
   "needsReviewBadge": "確認が必要",
   "noSubtitleSegmentLabel": "（字幕なし・聞いて真似する区間）",
 
