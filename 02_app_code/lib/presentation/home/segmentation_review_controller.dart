@@ -160,6 +160,11 @@ class SegmentationReviewController extends StateNotifier<SegmentationReviewState
     // 텍스트가 아예 없는 구간(무음 감지 결과)끼리 병합하면 병합 결과도 텍스트 없이
     // 유지한다 — 없는 텍스트를 지어내지 않는다.
     final mergedText = (a.text == null && b.text == null) ? null : '${a.text ?? ''} ${b.text ?? ''}'.trim();
+    // 2026-08-24 버그 수정: 영어 자막은 위처럼 합쳐지는데 한글 뜻(translation)은
+    // 그냥 a의 값만 남고 b의 뜻은 조용히 사라졌다("합치기하니 한글뜻이 안 합쳐지네"
+    // 실사용 제보) — text와 똑같은 방식으로 한글 뜻도 이어붙인다.
+    final mergedTranslation =
+        (a.translation == null && b.translation == null) ? null : '${a.translation ?? ''} ${b.translation ?? ''}'.trim();
     // 2026-08-07: split과 같은 이유로 새 id를 준다 — 병합도 두 문장을 하나의 새
     // 문장으로 합치는 구조적 변화라, id가 그대로면 편집 화면의 파형 표시 시간창이
     // 안 넓어져서(여전히 a만큼의 좁은 창) "병합이 안 된 것처럼" 보인다.
@@ -170,6 +175,8 @@ class SegmentationReviewController extends StateNotifier<SegmentationReviewState
       id: '${a.id}-merged-${DateTime.now().millisecondsSinceEpoch}',
       text: mergedText,
       clearText: mergedText == null,
+      translation: mergedTranslation,
+      clearTranslation: mergedTranslation == null,
       endMs: b.endMs,
       edited: true,
       completed: a.completed && b.completed,

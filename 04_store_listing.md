@@ -234,7 +234,7 @@ shadowing,speaking,pronunciation,listening,dictation,esl,fluency,free,practice,r
 
 ### 3-1. 로컬 파일 업로드 관련
 - [ ] 업로드된 파일이 기기 로컬에만 저장되는지, 서버에도 저장되는지 명시(UX 설계서 기준: 로컬 우선(SQLite/Drift/Isar), 클라우드 동기화는 선택 기능)
-- [x] **파일/미디어 접근 권한 확정(app-developer, `02_app_architecture.md` "필요 권한 목록")** — **필수 권한**. iOS는 시스템 문서 피커(UIDocumentPicker) 사용으로 별도 Info.plist 권한 불요, Android는 `READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO`(API 33+) 또는 `READ_EXTERNAL_STORAGE`(구버전). 요청 시점과 목적을 설정 화면 및 최초 요청 시점에 명시.
+- [x] **파일/미디어 접근 권한 확정(app-developer, `02_app_architecture.md` "필요 권한 목록")** — **필수 권한**. iOS는 시스템 문서 피커(UIDocumentPicker) 사용으로 별도 Info.plist 권한 불요, Android도 `file_picker`의 SAF(시스템 파일 선택 도구) 사용으로 런타임 권한 불요 — 2026-08-24: `READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO` 요청이 Google Play "사진 및 동영상 권한 정책" 위반으로 업데이트 심사 거절(버전 코드 11)돼 완전히 제거, 애초에 필요 없던 권한이었음이 확인됨.
 - [ ] 사용자가 파일을 삭제하면 로컬 및 (전송했다면) 서버 사본도 함께 삭제되는지 여부와 절차 명시 — **확정**: `DELETE /v1/media/{id}` 호출 시 서버 오디오/전사 데이터 즉시 파기(`03_api_integration.md` 4-5절)
 
 ### 3-2. [2026-08-05 — 해결됨] 음성 데이터 외부(STT) 전송 리스크 완전 제거
@@ -266,7 +266,7 @@ shadowing,speaking,pronunciation,listening,dictation,esl,fluency,free,practice,r
 
 | 권한 | iOS | Android | 용도 | 필수/선택 |
 |---|---|---|---|---|
-| 파일/미디어 접근 | 시스템 문서 피커(별도 Info.plist 권한 불요) | `READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO`(API 33+) 또는 `READ_EXTERNAL_STORAGE` | 로컬 음성/영상 업로드 | **필수** |
+| 파일/미디어 접근 | 시스템 문서 피커(별도 Info.plist 권한 불요) | ~~`READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO`~~ → (2026-08-24 제거) 런타임 권한 불요 — SAF(시스템 파일 선택 도구) 사용 | 로컬 음성/영상 업로드 | **필수** |
 | 알림 | `UNUserNotificationCenter` | `POST_NOTIFICATIONS`(API 33+) | 학습 리마인더(현재 UI만 존재, 스케줄링은 후속 구현 — `flutter_local_notifications` 연동 예정) | 선택 |
 | 인앱결제 | StoreKit | Google Play Billing | 광고 제거(단발성 비소모성, 14,900원) | 선택 — 구매하지 않아도 앱 전체 기능 이용 가능(광고만 노출), 구매 시 배너·전면 광고 제거 |
 | 백그라운드 오디오 | `UIBackgroundModes: audio` | `FOREGROUND_SERVICE`(미디어 재생) | 쉐도잉 학습 중 백그라운드 재생(`just_audio_background`) | **필수** |

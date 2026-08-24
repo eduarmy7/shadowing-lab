@@ -35,7 +35,7 @@
   "retry": "다시 시도",
 
   "onboardingSkip": "건너뛰기",
-  "onboardingPage1Headline": "내 파일을 넣으면\n자동으로 문장으로 잘라드려요",
+  "onboardingPage1Headline": "내 파일을 넣으면\n자동으로 문장을 잘라드려요",
   "onboardingPage1Subtext": "타임스탬프? 몰라도 돼요.\n자막이 있으면 자막대로, 없으면 무음 구간을 찾아서 나눠줘요.",
   "onboardingPage2Headline": "듣고, 따라 말하고,\n자동으로 다음 문장",
   "onboardingPage2Subtext": "손 안 대고 진행되는 리듬 속에서\n자연스럽게 반복 학습해요.",
@@ -48,7 +48,7 @@
   "onboardingPage6Headline": "문장을 합치거나\n나눌 수도 있어요",
   "onboardingPage6Subtext": "합치기·나누기는 누르는 즉시 저장돼요.\n따로 저장 버튼을 누를 필요는 없어요.",
   "onboardingPage7Headline": "매일 꾸준히,\n쉐도잉 습관을 만들어요",
-  "onboardingPage7Subtext": "학습을 시작하려면 파일 접근을\n허용해주세요.",
+  "onboardingPage7Subtext": "지금 나만의 파일을 올리고\n첫 학습을 시작해보세요.",
   "onboardingStart": "시작하기",
   "onboardingNext": "다음",
   "onboardingPermissionNotice": "일부 권한이 허용되지 않았어요. 설정에서 언제든 다시 허용할 수 있어요.",

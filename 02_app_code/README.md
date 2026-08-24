@@ -73,7 +73,7 @@ Android emulator 기준 실제 빌드·실행으로 검증됨. `analyze`/코드 
 
 | 권한 | 플랫폼 | 용도 |
 |---|---|---|
-| 파일/미디어 접근 | iOS `NSPhotoLibraryUsageDescription` 불필요(문서선택기 사용), Android `READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO` (API 33+) 또는 `READ_EXTERNAL_STORAGE` | 로컬 음성/영상 파일 업로드 |
+| 파일/미디어 접근 | iOS `NSPhotoLibraryUsageDescription` 불필요(문서선택기 사용), Android도 런타임 권한 불필요(SAF 시스템 파일 선택 도구 사용 — 2026-08-24: `READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO` 요청이 Play "사진 및 동영상 권한 정책" 위반으로 심사 거절돼 제거) | 로컬 음성/영상 파일 업로드 |
 | 마이크 | iOS `NSMicrophoneUsageDescription`, Android `RECORD_AUDIO` | 쉐도잉 "따라 말하기" 녹음(선택 기능 — 거부 시 듣기 전용 모드로 대체) |
 | 알림 | iOS `UNUserNotificationCenter`, Android `POST_NOTIFICATIONS` (API 33+) | 학습 리마인더 |
 | 인앱결제 | iOS StoreKit, Android Billing | PRO 구독 |

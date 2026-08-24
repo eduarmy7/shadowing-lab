@@ -305,7 +305,7 @@ Lab"으로 그대로 이관되어 그쪽 아키텍처 문서가 다룬다. `canc
 
 | 권한 | iOS | Android | 용도 | 필수/선택 |
 |---|---|---|---|---|
-| 파일/미디어 접근 | 시스템 문서 피커 사용(별도 Info.plist 권한 불요) | `READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO`(API 33+) 또는 `READ_EXTERNAL_STORAGE` | 로컬 음성/영상 업로드(#2) | 필수 |
+| 파일/미디어 접근 | 시스템 문서 피커 사용(별도 Info.plist 권한 불요) | ~~`READ_MEDIA_AUDIO`/`READ_MEDIA_VIDEO`~~ → (2026-08-24 제거) 런타임 권한 불요 — `file_picker`가 Android SAF(시스템 파일 선택 도구)로 처리해 애초에 필요 없었고, Google Play "사진 및 동영상 권한 정책" 위반으로 업데이트 심사 거절(버전 코드 11) | 로컬 음성/영상 업로드(#2) | 필수 |
 | ~~마이크~~ | ~~`NSMicrophoneUsageDescription`~~ | ~~`RECORD_AUDIO`~~ | (2026-08-08 제거) 앱은 어디에서도 마이크 오디오를 녹음/분석하지 않는다 — "따라 말하기" 단계는 타이머일 뿐이라 권한 요청 자체가 불필요했다. `PermissionService.requestMicrophone`/`checkMicrophone`, `ShadowingController.micGranted`, `AndroidManifest.xml`의 `RECORD_AUDIO` 모두 삭제 완료 | — |
 | 알림 | `UNUserNotificationCenter` | `POST_NOTIFICATIONS`(API 33+) | 학습 리마인더(#12, 현재 UI만 존재·스케줄링 미구현) | 선택 |
 | 인앱결제 | StoreKit | Google Play Billing | 광고 제거 단발성 구매(`AdRemovalSheet`, 2026-08-08: 옛 PRO 구독을 대체) | 선택(구매 안 해도 앱 전체 기능 사용 가능, 광고만 계속 노출) |

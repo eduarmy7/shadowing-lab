@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/permissions/permission_service.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -81,29 +80,18 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pageController = PageController();
   int _index = 0;
-  // 2026-08-08: 번역 문구를 state에 미리 저장해두면 언어를 나중에 바꿔도 화면엔 옛
-  // 언어 텍스트가 남는다 — 표시 여부만 상태로 들고, 실제 문구는 build()에서 그때의
-  // l10n으로 매번 새로 가져온다.
-  bool _showPermissionNotice = false;
 
   // 2026-08-11: 온보딩 완료 여부 확인은 이제 이 화면이 빌드되기 전에 라우터
   // redirect(`app_router.dart`)에서 끝난다 — 이미 완료한 사용자는 이 위젯 자체가
   // 만들어지지 않으므로, 여기서 다시 확인하고 되돌려보낼 필요가 없다.
 
+  // 2026-08-24: 온보딩에서 미디어 라이브러리 권한(READ_MEDIA_VIDEO 등)을 미리
+  // 요청하던 단계를 제거했다 — 실제 파일 선택은 `file_picker`가 Android SAF(시스템
+  // 파일 선택 도구)로 처리해 애초에 이 권한이 전혀 필요 없었고(요청 결과와 무관하게
+  // 항상 그대로 진행시켰을 만큼 있으나 마나 했다), Google Play "사진 및 동영상 권한
+  // 정책" 위반으로 업데이트 심사가 거절됐다(2026-08-24, `AndroidManifest.xml`의
+  // READ_MEDIA_VIDEO 선언도 함께 제거).
   Future<void> _complete() async {
-    // 2026-08-08: 마이크 권한 요청 제거 — 앱 어디에도 실제 오디오 녹음/분석 코드가
-    // 없다("따라 말하기" 단계는 사용자가 스스로 소리 내어 말하는 시간을 확보해주는
-    // 타이머일 뿐, 앱은 그 소리를 듣거나 저장하지 않는다). 있으나 마나 한 권한을
-    // 요청해 사용자를 불필요하게 막을 이유가 없다.
-    final permissionService = ref.read(permissionServiceProvider);
-    final mediaResult = await permissionService.requestMediaLibrary();
-
-    // 권한 거부 시에도 진행 허용 — "나중에 설정에서 허용 가능" 안내 후 계속.
-    if (mounted && mediaResult != AppPermissionStatus.granted) {
-      setState(() => _showPermissionNotice = true);
-      await Future.delayed(const Duration(milliseconds: 900));
-    }
-
     await ref.read(localKvStoreProvider).setJson(_onboardingDoneKey, true);
     if (mounted) context.go('/home');
   }
@@ -206,19 +194,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            if (_showPermissionNotice)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(AppSpacing.sm),
-                  ),
-                  child: Text(l10n.onboardingPermissionNotice, style: theme.textTheme.bodySmall),
-                ),
-              ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin, vertical: AppSpacing.md),
               child: PrimaryButton(

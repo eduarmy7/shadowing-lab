@@ -2,9 +2,11 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- 02_app_code/README.md 권한표(04_store_listing.md 04번 문서와 동일) 반영 -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- 2026-08-08: RECORD_AUDIO 제거 — 앱은 어디에서도 마이크 오디오를 실제로 녹음/분석하지 않는다. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <!-- 2026-08-08: RECORD_AUDIO 제거 — 앱은 어디에서도 마이크 오디오를 실제로 녹음/분석하지 않는다.
+         2026-08-24: READ_MEDIA_AUDIO/READ_MEDIA_VIDEO도 제거 — 실제 파일 선택은 file_picker가
+         Android SAF(시스템 파일 선택 도구)로 처리해 이 권한들이 애초에 전혀 필요 없었고,
+         Google Play "사진 및 동영상 권한 정책"(READ_MEDIA_IMAGES/VIDEO 대신 시스템 선택 도구를
+         쓰라는 정책) 위반으로 업데이트 심사가 거절됐다. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
