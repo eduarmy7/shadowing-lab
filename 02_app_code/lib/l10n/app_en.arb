@@ -52,6 +52,8 @@
   "onboardingStart": "Get Started",
   "onboardingNext": "Next",
   "onboardingPermissionNotice": "Some permissions weren't granted. You can allow them anytime in Settings.",
+  "nonEnglishSubtitleNotice": "This subtitle is only in {language} —\nthere's no English subtitle to study.",
+  "@nonEnglishSubtitleNotice": { "placeholders": { "language": { "type": "String" } } },
 
   "settingsTitle": "Settings",
   "settingsLoadError": "Couldn't load settings",

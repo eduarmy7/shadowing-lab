@@ -52,6 +52,8 @@
   "onboardingStart": "はじめる",
   "onboardingNext": "次へ",
   "onboardingPermissionNotice": "一部の権限が許可されませんでした。設定からいつでも許可できます。",
+  "nonEnglishSubtitleNotice": "この字幕は{language}のみで、\n英語学習用の字幕がありません。",
+  "@nonEnglishSubtitleNotice": { "placeholders": { "language": { "type": "String" } } },
 
   "settingsTitle": "設定",
   "settingsLoadError": "設定を読み込めませんでした",

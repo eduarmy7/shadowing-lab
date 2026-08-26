@@ -38,6 +38,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     // 눈에 아주 짧게 보였다 사라지는 깜빡임으로 나타났다. 목적지 화면을 짓기 전에
     // 먼저 판단하는 라우터 레벨 redirect로 옮기면 온보딩 화면 자체가 아예 빌드되지
     // 않는다.
+    //
+    // 2026-08-26: "학습 다 마치고 앱 재시작해도 학습 화면이 다시 뜬다"는 제보의
+    // 진짜 원인은 여기가 아니라 `StudyAudioHandler.onNotificationDeleted`였다(자세한
+    // 경위는 그 파일 주석 참고) — 한때 여기에도 "콜드 스타트 시 곧장 /shadowing으로
+    // 시작하는 경우"를 잡는 방어 코드를 추가했었지만, 실제 로그로 확인해보니
+    // `initialLocation`은 항상 정상적으로 지켜지고 있었다(진짜 원인은 다른 곳이었음).
+    // 검증 안 된 코드라 되돌렸다 — 진짜 원인 수정만으로 충분하다.
     redirect: (context, state) async {
       if (state.matchedLocation != '/onboarding') return null;
       final done = await ref.read(onboardingCompletedProvider.future);

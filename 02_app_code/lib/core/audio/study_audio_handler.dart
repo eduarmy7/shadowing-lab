@@ -38,15 +38,35 @@ class StudyAudioHandler extends BaseAudioHandler with SeekHandler {
     _broadcastState();
   }
 
+  // 2026-08-26 추가: audio_service 기본 정지 아이콘(drawable/audio_service_stop)이
+  // 여백 없이 꽉 찬 정사각형이라 재생(▶) 아이콘보다 훨씬 커 보인다는 실사용자
+  // 제보로, 여백을 둔 표준 Material 비율의 아이콘을 직접 만들어 대신 쓴다
+  // (`android/app/src/main/res/drawable/ic_stop_notification.xml` 참고).
+  static const _stopControl = MediaControl(
+    androidIcon: 'drawable/ic_stop_notification',
+    label: '정지',
+    action: MediaAction.stop,
+  );
+
+  // 2026-08-26 추가 — 실사용자 제보: 알림/잠금화면 미니 플레이어에 재생/일시정지
+  // 토글 버튼 하나뿐이라, "따라 말하기" 대기 구간(실제 오디오는 안 나오지만 학습
+  // 루프는 계속 진행 중인 상태)에는 재생 아이콘(▶)이 떠서 "지금 멈춰있나?" 헷갈리고,
+  // 그 상태에서 눌러도 이미 진행 중이던 루프라 체감상 "정지 버튼이 안 먹힌다"로
+  // 보였다. 토글 버튼(재생↔일시정지 아이콘 표시용)은 그대로 두되, 상태와 무관하게
+  // 항상 눌리는 별도의 정지(■) 버튼을 추가한다 — 눌리는 즉시 학습 루프 자체를
+  // 멈춘다([StudyAudioHandler.stop] 참고).
   void _broadcastState() {
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
         _service.isPlaying ? MediaControl.pause : MediaControl.play,
+        _stopControl,
         MediaControl.skipToNext,
       ],
       systemActions: const {MediaAction.seek},
-      androidCompactActionIndices: const [0, 1, 2],
+      // 압축(잠금화면 미니 플레이어) 뷰에는 토글+정지+다음을 우선 보여준다 — 이전
+      // 곡으로 가는 것보다 "멈추기"가 훨씬 급한 동작이라는 사용자 피드백 반영.
+      androidCompactActionIndices: const [1, 2, 3],
       processingState: _mapProcessingState(_service.processingState),
       playing: _service.isPlaying,
       speed: 1.0,
@@ -107,6 +127,10 @@ class StudyAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  /// 2026-08-26 추가된 알림의 전용 정지(■) 버튼이 호출하는 경로 — [pause]와 의도적으로
+  /// 동일하게 동작한다(둘 다 학습 루프 자체를 멈추는 [onNotificationPause] 콜백으로
+  /// 라우팅). 이 앱엔 "일시정지 후 나중에 이어듣기"와 "완전 정지"를 구분해야 할
+  /// 별도 요구사항이 없어 굳이 다른 동작을 만들지 않는다.
   @override
   Future<void> stop() async {
     if (onNotificationPause != null) {
@@ -114,6 +138,37 @@ class StudyAudioHandler extends BaseAudioHandler with SeekHandler {
     } else {
       await _service.pause();
     }
+  }
+
+  /// **2026-08-26 버그 수정 — 진짜 원인 발견**: `audio_service`는 사용자가 알림을
+  /// 직접 스와이프해서 지우면 자동으로 이 콜백을 호출한다(기본 구현은 [stop]만
+  /// 호출). 그런데 [stop]/[pause]는 재생만 멈출 뿐 [mediaItem](지금 재생 중인 항목
+  /// 정보)은 지우지 않는다 — 그래서 사용자가 알림을 눈으로 사라지게 해도 내부적으론
+  /// "세션이 아직 살아있다"는 신호가 남아있었고, 앱을 다시 열면 그 신호만 보고
+  /// 학습 화면으로 돌아가는 버그로 이어졌다(main.dart/app_router.dart의
+  /// "세션이 살아있으면 학습 화면 유지" 로직 참고). 알림을 직접 지우는 건 재생
+  /// 중이던 문장 처음으로 돌아가는 "일시정지"와 달리 확실한 "세션 종료" 의사표시로
+  /// 보고, 재생 정지에 더해 [clearNowPlaying]까지 호출한다.
+  @override
+  Future<void> onNotificationDeleted() async {
+    if (onNotificationPause != null) {
+      onNotificationPause!();
+    } else {
+      await _service.pause();
+    }
+    clearNowPlaying();
+  }
+
+  /// **2026-08-26 추가**: `androidNotificationOngoing: true`라 알림을 손가락으로
+  /// 스와이프해서 지우는 건 원래 막혀 있다 — 그래서 사용자가 "미니 플레이어를
+  /// 화면에서 안 보이게 지웠다"고 한 건 알림 자체가 아니라 **앱을 최근 목록에서
+  /// 스와이프해 지운 것**일 가능성이 높다. 이때 안드로이드 OS가 우리 앱의 포그라운드
+  /// 서비스(와 그 알림)를 통째로 정리하는데, `audio_service`의 [onTaskRemoved] 기본
+  /// 구현은 아무 것도 안 해서(위 [onNotificationDeleted]와 달리) [mediaItem]이
+  /// 그대로 남아 같은 버그로 이어진다. 이 경로에서도 세션 정보를 지운다.
+  @override
+  Future<void> onTaskRemoved() async {
+    clearNowPlaying();
   }
 
   @override

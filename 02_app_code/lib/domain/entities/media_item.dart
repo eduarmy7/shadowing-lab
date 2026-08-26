@@ -36,6 +36,11 @@ class MediaItem extends Equatable {
   // 앱 캐시에 저장해둔 로컬 파일 경로 — 없으면(추출 실패/원본에 이미지 없음) null이고
   // 홈 카드는 기존 아이콘으로 폴백한다. `cover_art_extractor.dart` 참고.
   final String? coverArtPath;
+  // 2026-08-26 추가: 자막에 언어 트랙이 딱 하나뿐이고 그게 영어가 아닐 때(예: 한국어
+  // 자막만 있는 파일) 그 언어 라벨(예: "한국어")이 채워진다 — [UploadController]의
+  // `nonEnglishSingleTrackLabel` 주석 참고. `AiAnalyzingScreen`이 분석 완료 직후 이
+  // 값을 보고 안내를 보여준다.
+  final String? nonEnglishSingleTrackLabel;
 
   const MediaItem({
     required this.id,
@@ -52,6 +57,7 @@ class MediaItem extends Equatable {
     required this.createdAt,
     this.lastStudiedAt,
     this.coverArtPath,
+    this.nonEnglishSingleTrackLabel,
   });
 
   double get completionRatio => sentenceCount == 0 ? 0 : completedSentenceCount / sentenceCount;
@@ -72,6 +78,7 @@ class MediaItem extends Equatable {
     DateTime? createdAt,
     DateTime? lastStudiedAt,
     String? coverArtPath,
+    String? nonEnglishSingleTrackLabel,
   }) {
     return MediaItem(
       id: id ?? this.id,
@@ -88,6 +95,7 @@ class MediaItem extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       lastStudiedAt: lastStudiedAt ?? this.lastStudiedAt,
       coverArtPath: coverArtPath ?? this.coverArtPath,
+      nonEnglishSingleTrackLabel: nonEnglishSingleTrackLabel ?? this.nonEnglishSingleTrackLabel,
     );
   }
 
@@ -106,6 +114,7 @@ class MediaItem extends Equatable {
         createdAt: DateTime.parse(json['createdAt'] as String),
         lastStudiedAt: json['lastStudiedAt'] == null ? null : DateTime.parse(json['lastStudiedAt'] as String),
         coverArtPath: json['coverArtPath'] as String?,
+        nonEnglishSingleTrackLabel: json['nonEnglishSingleTrackLabel'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -123,6 +132,7 @@ class MediaItem extends Equatable {
         'createdAt': createdAt.toIso8601String(),
         'lastStudiedAt': lastStudiedAt?.toIso8601String(),
         'coverArtPath': coverArtPath,
+        'nonEnglishSingleTrackLabel': nonEnglishSingleTrackLabel,
       };
 
   @override
@@ -141,5 +151,6 @@ class MediaItem extends Equatable {
         createdAt,
         lastStudiedAt,
         coverArtPath,
+        nonEnglishSingleTrackLabel,
       ];
 }

@@ -52,6 +52,8 @@
   "onboardingStart": "시작하기",
   "onboardingNext": "다음",
   "onboardingPermissionNotice": "일부 권한이 허용되지 않았어요. 설정에서 언제든 다시 허용할 수 있어요.",
+  "nonEnglishSubtitleNotice": "이 자막은 {language}로만 되어있고,\n영어 학습용 자막이 없습니다.",
+  "@nonEnglishSubtitleNotice": { "placeholders": { "language": { "type": "String" } } },
 
   "settingsTitle": "설정",
   "settingsLoadError": "설정을 불러오지 못했어요",

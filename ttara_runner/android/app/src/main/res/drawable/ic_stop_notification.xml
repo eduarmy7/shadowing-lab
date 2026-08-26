@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 2026-08-26 추가: audio_service 기본 제공 정지 아이콘(drawable/audio_service_stop)이
+     여백 없이 꽉 찬 정사각형이라 재생(▶) 아이콘 대비 훨씬 커 보인다는 실사용자 제보로
+     직접 만든 대체 아이콘 — Material 아이콘의 표준 stop 심볼(24dp 캔버스 안에 여백을
+     둔 정사각형, M6,6h12v12H6z)을 그대로 써서 다른 기본 아이콘들과 시각적 크기가
+     맞도록 했다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6,6h12v12H6z"/>
+</vector>

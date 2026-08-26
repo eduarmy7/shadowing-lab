@@ -289,6 +289,12 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     // 이 화면을 벗어날 때 알림 콜백을 해제하지 않으면, 학습 화면 밖(예: 홈)에서도
     // 알림 버튼이 이미 dispose된(mounted=false) 이 컨트롤러를 계속 참조하게 된다.
     _audioHandler?.clearCallbacks();
+    // 2026-08-26 버그 수정: 알림/잠금화면 미니 플레이어를 한 번도 지운 적이 없어서,
+    // 학습을 다 마치고 이 화면을 벗어나도(요약 화면으로 replace 이동 포함) 미니
+    // 플레이어가 계속 남아있었다("공부 다 마쳤는데 작은 플레이어가 안 없어짐" 부류의
+    // 실사용 문제와 앱 재접속 시 마지막 학습 화면이 잘못 다시 뜨는 문제 둘 다의
+    // 원인) — 이 컨트롤러가 사라질 때 지금 재생 정보도 함께 지운다.
+    _audioHandler?.clearNowPlaying();
     super.dispose();
   }
 
@@ -661,6 +667,53 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       fullyCompletedIndices: _completedIndicesOf(segments),
     );
     if (state.viewMode == ShadowingViewMode.single) _runSentenceLoop();
+  }
+
+  /// **2026-08-26 추가 — 가족 테스터 요청**: 한꺼번에 보기(목록) 화면에서 편집 화면을
+  /// 거치지 않고 연필 아이콘 옆의 버튼으로 바로 다음 문장과 합친다. 병합 알고리즘
+  /// 자체는 [SegmentationReviewController.mergeWithNext]와 동일하다(텍스트/한글 뜻
+  /// 이어붙이기, 구간 확장) — 다만 이 컨트롤러가 이미 메모리에 들고 있는 목록을 직접
+  /// 고쳐서, 별도 편집 컨트롤러를 새로 띄우고 다시 불러오는 왕복 없이 목록에 즉시
+  /// 반영한다. 마지막 문장(다음이 없음)이면 아무것도 하지 않고 false를 반환한다.
+  Future<bool> mergeSentenceWithNext(int index) async {
+    if (index < 0 || index >= state.segments.length - 1) return false;
+    final list = [...state.segments];
+    final a = list[index];
+    final b = list[index + 1];
+    final mergedText = (a.text == null && b.text == null) ? null : '${a.text ?? ''} ${b.text ?? ''}'.trim();
+    final mergedTranslation = (a.translation == null && b.translation == null)
+        ? null
+        : '${a.translation ?? ''} ${b.translation ?? ''}'.trim();
+    final merged = a.copyWith(
+      id: '${a.id}-merged-${DateTime.now().millisecondsSinceEpoch}',
+      text: mergedText,
+      clearText: mergedText == null,
+      translation: mergedTranslation,
+      clearTranslation: mergedTranslation == null,
+      endMs: b.endMs,
+      edited: true,
+      completed: a.completed && b.completed,
+    );
+    list[index] = merged;
+    list.removeAt(index + 1);
+    final reindexed = [for (var i = 0; i < list.length; i++) list[i].copyWith(index: i)];
+
+    // 합쳐진 지점 뒤로 문장들이 한 칸씩 당겨지므로, 지금 보고 있던 위치도 같이 보정한다.
+    final newCurrentIndex = (state.currentIndex > index ? state.currentIndex - 1 : state.currentIndex)
+        .clamp(0, reindexed.length - 1);
+
+    state = state.copyWith(
+      segments: reindexed,
+      currentIndex: newCurrentIndex,
+      fullyCompletedIndices: _completedIndicesOf(reindexed),
+    );
+
+    try {
+      await ref.read(segmentationRepositoryProvider).saveEditedSegments(mediaId, reindexed);
+    } catch (_) {
+      // 저장 실패해도 화면 표시(로컬 상태)는 유지 — 다른 편집 액션과 동일한 원칙.
+    }
+    return true;
   }
 
   /// 현재 문장을 "잘 안되는 문장"으로 표시/해제(#5 학습 화면 체크 버튼). 서버(Fake 구현체

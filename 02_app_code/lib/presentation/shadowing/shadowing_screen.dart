@@ -31,6 +31,7 @@ class ShadowingScreen extends ConsumerStatefulWidget {
 
 class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
   bool _navigatedToSummary = false;
+  bool _exiting = false;
 
   @override
   void initState() {
@@ -45,12 +46,38 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     super.dispose();
   }
 
+  /// 2026-08-13: 세션을 끝까지 마치지 않고 학습 화면을 나갈 때(닫기 버튼 / 뒤로가기)의
+  /// 전면 광고 트리거 — 사용자 확정 규칙("앱종료하기, 뒤로가기, 20문장마다"). 완주 후
+  /// 요약 화면 진입 시점 트리거와는 별개 경로라 두 번 겹쳐 뜨지 않는다(완주 시엔 이
+  /// 메서드가 아니라 [_navigatedToSummary] 경로로 곧장 요약 화면으로 넘어가고, 그
+  /// 화면에서 자체적으로 한 번 더 트리거한다).
+  Future<void> _exitToHome(BuildContext context) async {
+    if (_exiting) return;
+    _exiting = true;
+    final adsRemoved = await ref.read(purchaseRepositoryProvider).watchAdsRemoved().first;
+    if (!adsRemoved) {
+      await ref.read(adServiceProvider).showInterstitial();
+    }
+    if (context.mounted) context.go('/home');
+  }
+
   Future<void> _openEditor(BuildContext context, ShadowingController controller, int index) async {
     await controller.pauseForEditing();
     if (!context.mounted) return;
     await context.push('/shadowing/${widget.mediaId}/edit/$index');
     if (!context.mounted) return;
     await controller.reloadSegments();
+  }
+
+  /// 2026-08-26 추가 — 목록 화면의 합치기(⋈) 버튼. 편집 화면(`_openEditor`)과 달리
+  /// 화면 전환이 아예 없다 — [ShadowingController.mergeSentenceWithNext]가 이미
+  /// 메모리에 있는 목록을 바로 고쳐서 반영하므로, 결과만 토스트로 알려주면 된다.
+  Future<void> _mergeWithNext(BuildContext context, ShadowingController controller, int index) async {
+    final merged = await controller.mergeSentenceWithNext(index);
+    if (!context.mounted) return;
+    if (merged) {
+      AppToast.show(context, AppLocalizations.of(context)!.sentenceMergedSuccess, type: AppToastType.success);
+    }
   }
 
   @override
@@ -71,6 +98,15 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     ref.listen(shadowingControllerProvider(widget.mediaId), (prev, next) async {
       if (next.error != null && next.error != prev?.error) {
         AppToast.show(context, next.error!, type: AppToastType.error);
+      }
+      // 2026-08-13: "20문장마다" 전면 광고 트리거(사용자 확정 규칙) — 완료 문장 수가
+      // 20의 배수를 막 넘어선 순간에만 1회 발동시키려고 이전/이후 개수를 비교한다.
+      // 세션 완주와 정확히 같은 타이밍(예: 정확히 20문장짜리 콘텐츠)이면 아래 요약
+      // 화면 트리거와 겹치므로 그쪽에만 맡기고 여기선 건너뛴다.
+      final prevDone = prev?.fullyCompletedIndices.length ?? 0;
+      final nextDone = next.fullyCompletedIndices.length;
+      if (!adsRemoved && nextDone > prevDone && nextDone % 20 == 0 && !next.isSessionFullyDone) {
+        adService.showInterstitial();
       }
       // **2026-08-23 버그 수정**: 이미 100% 완료된 파일을 다시 열면(예: 홈에서 재진입),
       // 초기 상태(segments 비어있음, isSessionFullyDone=false)에서 로딩이 끝난
@@ -109,7 +145,13 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     final segment = state.currentSegment!;
     final isListMode = state.viewMode == ShadowingViewMode.list;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _exitToHome(context);
+      },
+      child: Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
@@ -121,6 +163,9 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                   IconButton(
                     icon: const Icon(Icons.close),
                     tooltip: l10n.studyEnd,
+                    // 2026-08-13: 사용자 요청으로 닫기(X) 버튼은 전면 광고 트리거에서 제외
+                    // — 너무 가볍게, 자주 누르는 버튼이라 매번 광고가 뜨면 마찰이 크다는
+                    // 판단. 시스템 뒤로가기(PopScope, 아래)만 [_exitToHome]을 탄다.
                     onPressed: () => context.go('/home'),
                   ),
                   Expanded(
@@ -198,6 +243,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                             filterFlaggedOnly: state.filterFlaggedOnly,
                             onTapSentence: controller.selectSentence,
                             onEditSentence: (i) => _openEditor(context, controller, i),
+                            onMergeWithNext: (i) => _mergeWithNext(context, controller, i),
                           ),
                         ),
                         if (!adsRemoved) adService.bannerAdWidget(context),
@@ -337,6 +383,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -353,6 +400,7 @@ class _SentenceListView extends StatefulWidget {
   final bool filterFlaggedOnly;
   final ValueChanged<int> onTapSentence;
   final ValueChanged<int> onEditSentence;
+  final ValueChanged<int> onMergeWithNext;
 
   const _SentenceListView({
     required this.segments,
@@ -361,6 +409,7 @@ class _SentenceListView extends StatefulWidget {
     required this.filterFlaggedOnly,
     required this.onTapSentence,
     required this.onEditSentence,
+    required this.onMergeWithNext,
   });
 
   @override
@@ -541,7 +590,11 @@ class _SentenceListViewState extends State<_SentenceListView> {
         final isDone = widget.completedIndices.contains(i);
         return Material(
           key: _keyFor(i),
-          color: isCurrent ? theme.colorScheme.primaryContainer : theme.colorScheme.surface,
+          // 2026-08-26: 진행 중인 문장을 배경색(primaryContainer)으로 칠하면, 같은
+          // 색을 쓰는 합치기/편집 원형 아이콘 배경이 그 문장 줄에서는 묻혀서 안 튄다는
+          // 피드백 — 배경은 항상 surface로 두고, 진행 중 표시는 아래 테두리 강조
+          // (`isCurrent ? primary/1.5 : dividerColor/1`)만으로 충분하다.
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
           child: InkWell(
             onTap: () => widget.onTapSentence(i),
@@ -597,11 +650,36 @@ class _SentenceListViewState extends State<_SentenceListView> {
                       child: Icon(Icons.check_circle,
                           size: 16, color: theme.extension<AppSemanticColors>()!.success),
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: l10n.editThisSentence,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => widget.onEditSentence(i),
+                  // 2026-08-26 추가 — 가족 테스터 요청: 편집 화면까지 안 들어가고
+                  // 목록에서 바로 다음 문장과 합칠 수 있게. 완료체크/깃발까지 겹치면
+                  // 아이콘 네 개가 다닥다닥 붙어 복잡해 보인다는 피드백으로, 합치기·
+                  // 편집 두 액션 버튼만 온보딩 화면(`onboardingPage3~6`)과 같은 연한
+                  // 원형 배경으로 감싸 완료체크(초록)/깃발(빨강)과 시각적으로 구분되게
+                  // 한다. 마지막 문장은 합칠 다음이 없으니 숨긴다.
+                  if (i < widget.segments.length - 1)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: CircleIconButton(
+                        icon: Icons.call_merge,
+                        backgroundColor: theme.colorScheme.primaryContainer,
+                        iconColor: theme.colorScheme.primary,
+                        size: 30,
+                        iconSize: 16,
+                        semanticLabel: l10n.mergeWithNextSentence,
+                        onTap: () => widget.onMergeWithNext(i),
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: CircleIconButton(
+                      icon: Icons.edit_outlined,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      iconColor: theme.colorScheme.primary,
+                      size: 30,
+                      iconSize: 16,
+                      semanticLabel: l10n.editThisSentence,
+                      onTap: () => widget.onEditSentence(i),
+                    ),
                   ),
                 ],
               ),

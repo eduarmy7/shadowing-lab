@@ -171,9 +171,42 @@ class SamiLanguageTrack {
 /// 자체에서 언어를 추측한다(KR/KO→한국어, EN→English 등). 트랙이 1개 이하면 빈
 /// 리스트를 반환 — 호출측은 이때 언어 선택 UI를 건너뛰고 예전처럼 동작해야 한다.
 List<SamiLanguageTrack> detectSamiLanguageTracks(String content) {
+  final (classIds, styleNames) = _scanSamiClassIds(content);
+  if (classIds.length <= 1) return const [];
+
+  return [
+    for (final classId in classIds)
+      SamiLanguageTrack(
+        classId: classId,
+        label: styleNames[classId.toLowerCase()] ?? _guessLanguageLabel(classId),
+      ),
+  ];
+}
+
+/// **2026-08-26 추가**: [detectSamiLanguageTracks]는 트랙이 1개뿐이면(선택 UI가
+/// 필요 없으니) 빈 리스트를 반환하는데, 그 유일한 트랙이 정확히 뭔지는 알려주지
+/// 않는다. 실사용자 제보 — 다운로드한 SMI 중엔 애초에 한국어 자막만 있는(영어
+/// 트랙이 아예 없는) 파일도 있는데, 이 경우 자막 선택 없이 조용히 한국어 문장이
+/// 그대로 보여 "왜 한글이 나오지?"로 혼란을 준다. 호출측(`UploadController`)이
+/// "이 자막은 한국어로만 되어 있어요" 같은 안내를 보여줄 수 있도록, 트랙이 정확히
+/// 1개일 때 그 트랙 정보를 돌려준다(0개 또는 2개 이상이면 null — 후자는 언어
+/// 선택 UI로 이미 처리됨).
+SamiLanguageTrack? detectSingleSamiLanguageTrack(String content) {
+  final (classIds, styleNames) = _scanSamiClassIds(content);
+  if (classIds.length != 1) return null;
+  final classId = classIds.single;
+  return SamiLanguageTrack(
+    classId: classId,
+    label: styleNames[classId.toLowerCase()] ?? _guessLanguageLabel(classId),
+  );
+}
+
+/// [detectSamiLanguageTracks]/[detectSingleSamiLanguageTrack]이 공유하는 스캔 로직 —
+/// STYLE 블록의 `.클래스 { Name:이름; }` 표시 이름과, 본문에 실제로 쓰인 Class들을
+/// 등장 순서대로(중복 제거) 모은다.
+(List<String>, Map<String, String>) _scanSamiClassIds(String content) {
   final normalized = content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 
-  // <STYLE>...</STYLE> 안의 `.ClassName { ... Name:표시이름 ... }` 규칙에서 이름을 뽑는다.
   final styleNames = <String, String>{};
   final styleBlock = RegExp(r'<STYLE[^>]*>([\s\S]*?)</STYLE>', caseSensitive: false).firstMatch(normalized);
   if (styleBlock != null) {
@@ -188,7 +221,6 @@ List<SamiLanguageTrack> detectSamiLanguageTracks(String content) {
     }
   }
 
-  // 본문에 실제로 쓰인 Class들을 등장 순서대로 수집(중복 제거).
   final seen = <String>{};
   final classIds = <String>[];
   for (final pTag in _samiPTagPattern.allMatches(normalized).map((m) => m.group(0)!)) {
@@ -197,15 +229,17 @@ List<SamiLanguageTrack> detectSamiLanguageTracks(String content) {
     classIds.add(classId);
   }
 
-  if (classIds.length <= 1) return const [];
+  return (classIds, styleNames);
+}
 
-  return [
-    for (final classId in classIds)
-      SamiLanguageTrack(
-        classId: classId,
-        label: styleNames[classId.toLowerCase()] ?? _guessLanguageLabel(classId),
-      ),
-  ];
+/// classId(ISO 639 코드 계열)나 표시 라벨로 "영어 트랙"인지 판단한다 — 한국어 판단
+/// ([findKoreanLanguageClassId])과 같은 방식. 대소문자 무관.
+bool isEnglishSamiTrack(SamiLanguageTrack track) {
+  final classIdLower = track.classId.toLowerCase();
+  final isEnglishClassId =
+      classIdLower == 'en' || classIdLower == 'eng' || classIdLower.startsWith('en-') || classIdLower.startsWith('eng-');
+  final isEnglishLabel = track.label == '영어' || track.label.toLowerCase() == 'english';
+  return isEnglishClassId || isEnglishLabel;
 }
 
 /// **2026-08-22 추가**: 다국어 SMI에서 [studyClassId](사용자가 학습 언어로 고른 트랙)와

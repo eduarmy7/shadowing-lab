@@ -65,6 +65,47 @@ void main() {
     });
   });
 
+  group('detectSingleSamiLanguageTrack/isEnglishSamiTrack — 2026-08-26 추가', () {
+    test('한국어 자막만 있는 SMI는 그 한국어 트랙을 돌려주고, 영어가 아니라고 판단한다', () {
+      const koOnly = '''
+<sami>
+<head>
+<style type='text/css'><!--
+.ko { Name:한국어; lang:ko; SAMIType:CC; }
+--></style>
+</head>
+<body>
+<SYNC Start=0><P class='ko'>혹시 그 에피소드 기억나세요?
+<SYNC Start=1000><P class='ko'>&nbsp;
+</body>
+</sami>
+''';
+      final track = detectSingleSamiLanguageTrack(koOnly);
+      expect(track, isNotNull);
+      expect(track!.classId, 'ko');
+      expect(track.label, '한국어');
+      expect(isEnglishSamiTrack(track), isFalse);
+    });
+
+    test('영어 자막만 있는 SMI는 영어라고 판단한다', () {
+      const enOnly = '''
+<SAMI>
+<BODY>
+<SYNC Start=0><P Class=ENUSCC1>Hello there
+<SYNC Start=1000><P Class=ENUSCC1>Nice to meet you
+</BODY>
+</SAMI>
+''';
+      final track = detectSingleSamiLanguageTrack(enOnly);
+      expect(track, isNotNull);
+      expect(isEnglishSamiTrack(track!), isTrue);
+    });
+
+    test('다국어 SMI(트랙 2개 이상)는 null — 언어 선택 UI가 대신 처리한다', () {
+      expect(detectSingleSamiLanguageTrack(_sampleSmiKoEn), isNull);
+    });
+  });
+
   group('parseSubtitleFile — preferredLanguageClassId', () {
     test('지정 안 하면 예전처럼 각 구간 첫 번째 <P>(한국어)를 쓴다', () {
       final cues = parseSubtitleFile(_sampleSmiKoEn, fileNameOrExt: 'x.smi');

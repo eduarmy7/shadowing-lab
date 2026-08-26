@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../common_widgets/primary_button.dart';
+import '../providers/repository_providers.dart';
 import 'analyzing_controller.dart';
 
 /// #3 문장 분리 중 — 진행률 %, 예상 소요시간, 실패 시 재시도/수동 분리 대체 경로.
@@ -45,6 +46,14 @@ String _formatMinutes(AppLocalizations l10n, double seconds) {
 }
 
 class _AiAnalyzingScreenState extends ConsumerState<AiAnalyzingScreen> {
+  // 2026-08-26 추가: 자막에 언어 트랙이 한국어(등 영어가 아닌 언어) 하나뿐인 파일은,
+  // 분석이 자막 파싱이라 순식간에 끝나버려서 안내 토스트를 띄워봐야 읽을 시간도 없이
+  // 넘어갔다("안내문구 읽을 시간이 없이 지나가버리네" — 사용자 피드백). 그래서 토스트
+  // 대신, 분석이 끝나도 곧장 넘어가지 않고 이 화면에 큼직하게 안내를 [_noticeDuration]
+  // 만큼 보여준 뒤에 학습 화면으로 넘어간다.
+  static const _noticeDuration = Duration(seconds: 5);
+  String? _nonEnglishNoticeLabel;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +66,16 @@ class _AiAnalyzingScreenState extends ConsumerState<AiAnalyzingScreen> {
     super.dispose();
   }
 
+  Future<void> _handleSucceeded(String mediaId) async {
+    final item = await ref.read(mediaRepositoryProvider).getById(mediaId);
+    final label = item?.nonEnglishSingleTrackLabel;
+    if (label != null && mounted) {
+      setState(() => _nonEnglishNoticeLabel = label);
+      await Future.delayed(_noticeDuration);
+    }
+    if (mounted) context.pushReplacement('/shadowing/$mediaId');
+  }
+
   @override
   Widget build(BuildContext context) {
     final mediaId = widget.mediaId;
@@ -66,9 +85,34 @@ class _AiAnalyzingScreenState extends ConsumerState<AiAnalyzingScreen> {
 
     ref.listen(analyzingControllerProvider(mediaId), (prev, next) {
       if (next.phase == AnalyzingPhase.succeeded) {
-        context.pushReplacement('/shadowing/$mediaId');
+        _handleSucceeded(mediaId);
       }
     });
+
+    final noticeLabel = _nonEnglishNoticeLabel;
+    if (noticeLabel != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenMargin),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.translate_outlined, size: 72, color: theme.colorScheme.primary),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text(
+                    l10n.nonEnglishSubtitleNotice(noticeLabel),
+                    style: theme.textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: SafeArea(

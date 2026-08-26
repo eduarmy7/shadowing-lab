@@ -69,6 +69,17 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     await controller.reloadSegments();
   }
 
+  /// 2026-08-26 추가 — 목록 화면의 합치기(⋈) 버튼. 편집 화면(`_openEditor`)과 달리
+  /// 화면 전환이 아예 없다 — [ShadowingController.mergeSentenceWithNext]가 이미
+  /// 메모리에 있는 목록을 바로 고쳐서 반영하므로, 결과만 토스트로 알려주면 된다.
+  Future<void> _mergeWithNext(BuildContext context, ShadowingController controller, int index) async {
+    final merged = await controller.mergeSentenceWithNext(index);
+    if (!context.mounted) return;
+    if (merged) {
+      AppToast.show(context, AppLocalizations.of(context)!.sentenceMergedSuccess, type: AppToastType.success);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(shadowingControllerProvider(widget.mediaId));
@@ -232,6 +243,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                             filterFlaggedOnly: state.filterFlaggedOnly,
                             onTapSentence: controller.selectSentence,
                             onEditSentence: (i) => _openEditor(context, controller, i),
+                            onMergeWithNext: (i) => _mergeWithNext(context, controller, i),
                           ),
                         ),
                         if (!adsRemoved) adService.bannerAdWidget(context),
@@ -388,6 +400,7 @@ class _SentenceListView extends StatefulWidget {
   final bool filterFlaggedOnly;
   final ValueChanged<int> onTapSentence;
   final ValueChanged<int> onEditSentence;
+  final ValueChanged<int> onMergeWithNext;
 
   const _SentenceListView({
     required this.segments,
@@ -396,6 +409,7 @@ class _SentenceListView extends StatefulWidget {
     required this.filterFlaggedOnly,
     required this.onTapSentence,
     required this.onEditSentence,
+    required this.onMergeWithNext,
   });
 
   @override
@@ -576,7 +590,11 @@ class _SentenceListViewState extends State<_SentenceListView> {
         final isDone = widget.completedIndices.contains(i);
         return Material(
           key: _keyFor(i),
-          color: isCurrent ? theme.colorScheme.primaryContainer : theme.colorScheme.surface,
+          // 2026-08-26: 진행 중인 문장을 배경색(primaryContainer)으로 칠하면, 같은
+          // 색을 쓰는 합치기/편집 원형 아이콘 배경이 그 문장 줄에서는 묻혀서 안 튄다는
+          // 피드백 — 배경은 항상 surface로 두고, 진행 중 표시는 아래 테두리 강조
+          // (`isCurrent ? primary/1.5 : dividerColor/1`)만으로 충분하다.
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
           child: InkWell(
             onTap: () => widget.onTapSentence(i),
@@ -632,11 +650,36 @@ class _SentenceListViewState extends State<_SentenceListView> {
                       child: Icon(Icons.check_circle,
                           size: 16, color: theme.extension<AppSemanticColors>()!.success),
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: l10n.editThisSentence,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => widget.onEditSentence(i),
+                  // 2026-08-26 추가 — 가족 테스터 요청: 편집 화면까지 안 들어가고
+                  // 목록에서 바로 다음 문장과 합칠 수 있게. 완료체크/깃발까지 겹치면
+                  // 아이콘 네 개가 다닥다닥 붙어 복잡해 보인다는 피드백으로, 합치기·
+                  // 편집 두 액션 버튼만 온보딩 화면(`onboardingPage3~6`)과 같은 연한
+                  // 원형 배경으로 감싸 완료체크(초록)/깃발(빨강)과 시각적으로 구분되게
+                  // 한다. 마지막 문장은 합칠 다음이 없으니 숨긴다.
+                  if (i < widget.segments.length - 1)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: CircleIconButton(
+                        icon: Icons.call_merge,
+                        backgroundColor: theme.colorScheme.primaryContainer,
+                        iconColor: theme.colorScheme.primary,
+                        size: 30,
+                        iconSize: 16,
+                        semanticLabel: l10n.mergeWithNextSentence,
+                        onTap: () => widget.onMergeWithNext(i),
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: CircleIconButton(
+                      icon: Icons.edit_outlined,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      iconColor: theme.colorScheme.primary,
+                      size: 30,
+                      iconSize: 16,
+                      semanticLabel: l10n.editThisSentence,
+                      onTap: () => widget.onEditSentence(i),
+                    ),
                   ),
                 ],
               ),

@@ -41,6 +41,10 @@ class UploadState {
   // 변화를 `ref.listen`으로 지켜보다가 직접 다음 화면으로 넘어간다(아래 클래스 doc 참고,
   // "왜 이 필드가 필요한가").
   final String? registeredMediaId;
+  // 2026-08-26 추가: 자막이 언어 트랙 1개뿐이고 그게 영어가 아닐 때(예: 한국어 자막만
+  // 있는 파일) 그 언어 라벨(예: "한국어")이 채워진다 — [FileUploadScreen]이
+  // [registeredMediaId]와 함께 보고 "이 자막은 O로만 되어 있어요" 안내를 보여준다.
+  final String? nonEnglishSingleTrackLabel;
 
   const UploadState({
     this.phase = UploadPhase.idle,
@@ -52,6 +56,7 @@ class UploadState {
     String? pendingSubtitlePath,
     this.detectedLanguageTracks = const [],
     this.registeredMediaId,
+    this.nonEnglishSingleTrackLabel,
   })  : _pendingLocalPath = pendingLocalPath,
         _pendingSourceType = pendingSourceType,
         _pendingSubtitlePath = pendingSubtitlePath;
@@ -70,6 +75,7 @@ class UploadState {
     String? pendingSubtitlePath,
     List<SamiLanguageTrack>? detectedLanguageTracks,
     String? registeredMediaId,
+    String? nonEnglishSingleTrackLabel,
   }) {
     return UploadState(
       phase: phase ?? this.phase,
@@ -81,6 +87,7 @@ class UploadState {
       pendingSubtitlePath: pendingSubtitlePath ?? _pendingSubtitlePath,
       detectedLanguageTracks: detectedLanguageTracks ?? this.detectedLanguageTracks,
       registeredMediaId: registeredMediaId ?? this.registeredMediaId,
+      nonEnglishSingleTrackLabel: nonEnglishSingleTrackLabel ?? this.nonEnglishSingleTrackLabel,
     );
   }
 }
@@ -251,9 +258,19 @@ class UploadController extends StateNotifier<UploadState> {
     required String subtitlePath,
   }) async {
     List<SamiLanguageTrack> tracks = const [];
+    String? nonEnglishSingleTrackLabel;
     try {
       final content = await readSubtitleFileAsText(subtitlePath);
       tracks = detectSamiLanguageTracks(content);
+      if (tracks.isEmpty) {
+        // 2026-08-26 추가: 트랙이 1개뿐이라 선택 UI는 안 뜨지만, 그 유일한 트랙이
+        // 영어가 아니면(예: 한국어 자막만 있는 파일) 등록 후 사용자에게 알려준다 —
+        // 실사용자 제보: 왜 한글이 나오는지 이유를 알 방법이 없었다.
+        final single = detectSingleSamiLanguageTrack(content);
+        if (single != null && !isEnglishSamiTrack(single)) {
+          nonEnglishSingleTrackLabel = single.label;
+        }
+      }
     } catch (_) {
       // 여기서 못 읽거나 형식이 이상해도 실제 파싱 실패 처리는 분석 단계
       // (fake_segmentation_repository.dart의 watchJobStatus)에 맡긴다 — 여기서는
@@ -266,6 +283,7 @@ class UploadController extends StateNotifier<UploadState> {
         fileName: fileName,
         sourceType: sourceType,
         subtitlePath: subtitlePath,
+        nonEnglishSingleTrackLabel: nonEnglishSingleTrackLabel,
       );
     }
 
@@ -351,8 +369,14 @@ class UploadController extends StateNotifier<UploadState> {
     required String? subtitlePath,
     String? subtitleLanguageClassId,
     String? translationLanguageClassId,
+    String? nonEnglishSingleTrackLabel,
   }) async {
-    state = UploadState(phase: UploadPhase.uploading, fileName: fileName, progress: 0);
+    state = UploadState(
+      phase: UploadPhase.uploading,
+      fileName: fileName,
+      progress: 0,
+      nonEnglishSingleTrackLabel: nonEnglishSingleTrackLabel,
+    );
     debugPrint('[_registerAndSave] start localPath=$localPath fileName=$fileName');
 
     try {
@@ -376,6 +400,7 @@ class UploadController extends StateNotifier<UploadState> {
             durationMs: 0, // 재생 시 just_audio가 실제 duration을 채움(스캐폴드 한계)
             status: MediaStatus.analyzing,
             createdAt: DateTime.now(),
+            nonEnglishSingleTrackLabel: nonEnglishSingleTrackLabel,
           ));
       debugPrint('[_registerAndSave] MediaItem saved, done.');
 
