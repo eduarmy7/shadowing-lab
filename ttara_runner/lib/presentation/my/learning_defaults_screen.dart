@@ -83,19 +83,29 @@ class LearningDefaultsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
+      // 2026-08-28: 재생 속도 목록이 7개→16개(0.1 단위)로 늘어나면서, 스크롤이
+      // 없으면 화면 아래쪽 항목(예: 1.8~2.0배속)이 화면 밖으로 가려져 아예 선택할
+      // 수 없는 기기가 생긴다 — 시트가 화면의 최대 70%까지 커질 수 있게 하고
+      // 내부를 스크롤 가능하게 만들어 모든 항목에 닿을 수 있게 한다.
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            for (final speed in AppConstants.availablePlaybackSpeeds)
-              ListTile(
-                title: Text(l10n.speedUnit(speed.toString())),
-                trailing: settings.defaultPlaybackSpeed == speed ? const Icon(Icons.check) : null,
-                onTap: () {
-                  updateLearningSettings(ref, (s) => s.copyWith(defaultPlaybackSpeed: speed));
-                  Navigator.pop(ctx);
-                },
-              ),
-          ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+          child: SingleChildScrollView(
+            child: Wrap(
+              children: [
+                for (final speed in AppConstants.availablePlaybackSpeeds)
+                  ListTile(
+                    title: Text(l10n.speedUnit(speed.toString())),
+                    trailing: settings.defaultPlaybackSpeed == speed ? const Icon(Icons.check) : null,
+                    onTap: () {
+                      updateLearningSettings(ref, (s) => s.copyWith(defaultPlaybackSpeed: speed));
+                      Navigator.pop(ctx);
+                    },
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

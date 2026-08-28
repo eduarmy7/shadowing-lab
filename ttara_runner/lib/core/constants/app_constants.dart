@@ -117,5 +117,12 @@ abstract class AppConstants {
   static const int minRepeatCount = 3;
   static const int maxRepeatCount = 10;
   static const double defaultPlaybackSpeed = 1.0;
-  static const List<double> availablePlaybackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+  // 2026-08-28: 0.25 단위(7단계)로는 세밀한 조절이 부족하다는 사용자 요청으로
+  // 0.5~2.0 사이를 0.1 단위(16단계)로 촘촘하게 바꿨다. 고르는 화면(학습 옵션
+  // 드롭다운/학습 기본값 바텀시트) 둘 다 항목 수 증가에 맞춰 확인 완료 —
+  // 특히 바텀시트는 스크롤 없이는 아래쪽 항목이 가려질 수 있어 스크롤 가능하게
+  // 함께 고쳤다(`learning_defaults_screen.dart`의 `_showSpeedPicker`).
+  static const List<double> availablePlaybackSpeeds = [
+    0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+  ];
 }
