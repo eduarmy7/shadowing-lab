@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
@@ -249,19 +250,27 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
                 )
               else
                 Row(
+                  // 2026-08-27: 테두리색을 글자색(primary)과 맞췄더니 오히려 산만하다는
+                  // 피드백으로 테두리는 기본값(outline)으로 되돌리고, 대신 목록 보기의
+                  // 합치기 버튼과 같은 "바탕색 있는 동그라미" 아이콘(`_RoundActionIcon`)을
+                  // 그림 부분에 써서 두 화면의 느낌을 통일한다. 분리 버튼도 같은 처리.
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: hasNext ? () => _merge(controller, segment) : null,
-                        icon: const Icon(Icons.call_merge, size: 18),
-                        label: Text(l10n.mergeWithNextSentence),
+                        // 2026-08-27: 글자색이 아이콘과 같은 primary라 눈에 덜 띈다는
+                        // 피드백 — 라벨만 onSurface(검정에 가까운 다크모드 대응 색)로.
+                        style: OutlinedButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface),
+                        icon: _RoundActionIcon(icon: Icons.merge, enabled: hasNext),
+                        label: Text(l10n.mergeWithNextSentence, textAlign: TextAlign.center),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: _startSplitMode,
-                        icon: const Icon(Icons.call_split, size: 18),
+                        style: OutlinedButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface),
+                        icon: const _RoundActionIcon(icon: Icons.call_split_rounded),
                         label: Text(l10n.splitButton),
                       ),
                     ),
@@ -317,6 +326,34 @@ class _SentenceEditScreenState extends ConsumerState<SentenceEditScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 2026-08-27 추가 — 합치기/분리 버튼의 아이콘을 목록 보기(`shadowing_screen.dart`의
+/// 합치기/편집 `CircleIconButton`)와 같은 "바탕색 있는 동그라미" 느낌으로 통일한다.
+/// [enabled]가 false면(합치기 버튼이 마지막 문장이라 비활성일 때) 흐리게 표시해
+/// `OutlinedButton`의 기본 비활성 스타일과 어울리게 한다.
+class _RoundActionIcon extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+
+  const _RoundActionIcon({required this.icon, this.enabled = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: enabled
+            ? (isDark ? AppColors.mergeContainerDark : AppColors.mergeContainerLight)
+            : theme.disabledColor.withValues(alpha: 0.08),
+      ),
+      child: Icon(icon, size: 18, color: enabled ? theme.colorScheme.primary : theme.disabledColor),
     );
   }
 }

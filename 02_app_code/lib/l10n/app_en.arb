@@ -266,7 +266,7 @@
   "sentenceMergedSuccess": "Merged with next sentence",
   "sentenceLengthSaved": "Sentence length saved",
   "splitAtThisPosition": "Split Here",
-  "mergeWithNextSentence": "Merge with Next",
+  "mergeWithNextSentence": "Merge with\nNext",
   "splitButton": "Split",
   "previousSentenceTooltip": "Previous Sentence",
   "nextSentenceTooltip": "Next Sentence",
@@ -296,5 +296,10 @@
   "decrementPoint1Sec": "-0.1s",
 
   "repeatDotsCompletedLabel": "{completed} of {total} completed",
-  "@repeatDotsCompletedLabel": { "placeholders": { "total": { "type": "int" }, "completed": { "type": "int" } } }
+  "@repeatDotsCompletedLabel": { "placeholders": { "total": { "type": "int" }, "completed": { "type": "int" } } },
+
+  "mergeHintBannerMessage": "Tap the merge icon next to a sentence to combine it with the next one.",
+  "mergeHintBannerDismiss": "Close",
+
+  "weekHeatmapTodayLabel": "Today"
 }

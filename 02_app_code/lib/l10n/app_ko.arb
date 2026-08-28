@@ -266,7 +266,7 @@
   "sentenceMergedSuccess": "다음 문장과 합쳤어요",
   "sentenceLengthSaved": "문장 길이를 저장했어요",
   "splitAtThisPosition": "이 위치에서 분리",
-  "mergeWithNextSentence": "다음 문장과 병합",
+  "mergeWithNextSentence": "다음 문장과\n병합",
   "splitButton": "분리",
   "previousSentenceTooltip": "이전 문장",
   "nextSentenceTooltip": "다음 문장",
@@ -296,5 +296,10 @@
   "decrementPoint1Sec": "-0.1초",
 
   "repeatDotsCompletedLabel": "{total}회 중 {completed}회 완료",
-  "@repeatDotsCompletedLabel": { "placeholders": { "total": { "type": "int" }, "completed": { "type": "int" } } }
+  "@repeatDotsCompletedLabel": { "placeholders": { "total": { "type": "int" }, "completed": { "type": "int" } } },
+
+  "mergeHintBannerMessage": "문장 옆 합치기 아이콘을 누르면 다음 문장과 바로 합칠 수 있어요",
+  "mergeHintBannerDismiss": "닫기",
+
+  "weekHeatmapTodayLabel": "오늘"
 }

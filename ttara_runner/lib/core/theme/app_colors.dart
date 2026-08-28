@@ -59,4 +59,21 @@ abstract class AppColors {
   /// 신뢰도 낮은 문장(⚠️) 강조용 — 색상 단독 의존 금지 원칙에 따라 항상
   /// 라벨("확인 필요")과 아이콘을 함께 사용할 것.
   static const warning = Color(0xFFF5A524);
+
+  // ── 목록 화면 편집(연필) 버튼 전용 강조색 ───────────────
+  // 2026-08-27: 목록 화면의 합치기/편집 버튼이 둘 다 primaryContainer/primary(터콰이즈)
+  // 톤이라 나란히 있으면 구분이 잘 안 된다는 피드백 — 편집 버튼만 "진한 파랑 연필"로
+  // 분리해달라는 요청. waveformLight/Dark(파형 전용, 과거 메인색 유지 요청으로 이미
+  // 예약됨)와는 별개의 새 토큰.
+  static const pencilAccentLight = Color(0xFF1D3A8F);
+  static const pencilContainerLight = Color(0xFFDCE4F7);
+  static const pencilAccentDark = Color(0xFF8FA8FF);
+  static const pencilContainerDark = Color(0xFF1E2A4D);
+
+  // 2026-08-27 추가 — 연필 버튼을 진한 파랑으로 눈에 띄게 바꾸고 나니, 상대적으로
+  // 합치기 버튼(기존 primaryContainer 배경)의 글자가 배경과 톤이 비슷해 묻힌다는
+  // 피드백 — 합치기 버튼만 배경을 더 옅게 빼서 아이콘(기존 primary 색 그대로 유지)이
+  // 배경 대비 도드라지게 한다.
+  static const mergeContainerLight = Color(0xFFEBFAFC);
+  static const mergeContainerDark = Color(0xFF162428);
 }

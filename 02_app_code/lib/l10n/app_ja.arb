@@ -266,7 +266,7 @@
   "sentenceMergedSuccess": "次の文章と結合しました",
   "sentenceLengthSaved": "文章の長さを保存しました",
   "splitAtThisPosition": "この位置で分割",
-  "mergeWithNextSentence": "次の文章と結合",
+  "mergeWithNextSentence": "次の文章と\n結合",
   "splitButton": "分割",
   "previousSentenceTooltip": "前の文章",
   "nextSentenceTooltip": "次の文章",
@@ -296,5 +296,10 @@
   "decrementPoint1Sec": "-0.1秒",
 
   "repeatDotsCompletedLabel": "{total}回中{completed}回完了",
-  "@repeatDotsCompletedLabel": { "placeholders": { "total": { "type": "int" }, "completed": { "type": "int" } } }
+  "@repeatDotsCompletedLabel": { "placeholders": { "total": { "type": "int" }, "completed": { "type": "int" } } },
+
+  "mergeHintBannerMessage": "文章の横にある結合アイコンをタップすると、次の文章とすぐに結合できます。",
+  "mergeHintBannerDismiss": "閉じる",
+
+  "weekHeatmapTodayLabel": "今日"
 }

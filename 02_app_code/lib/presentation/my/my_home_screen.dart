@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../common_widgets/ad_removal_sheet.dart';
@@ -120,8 +122,11 @@ class _WeekHeatmapRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).toString();
     final now = DateTime.now();
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       // 2026-08-23 버그 수정: i=0(맨 왼쪽)이 6일 전이고 오늘이 맨 오른쪽(마지막)에
       // 오게 돼 있어서, "오늘 공부하면 왜 맨 뒤 칸부터 채워지냐"는 사용자 피드백이
       // 있었다 — 오늘이 맨 앞(왼쪽)에 오고 과거로 갈수록 뒤로 가도록 순서를 뒤집는다.
@@ -130,15 +135,39 @@ class _WeekHeatmapRow extends StatelessWidget {
         final key = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
         final count = heatmap[key] ?? 0;
         final intensity = count == 0 ? 0.08 : (0.3 + (count / 20).clamp(0, 0.7));
+        // 2026-08-27 추가 — 실사용자·지인 다수가 "어느 칸이 오늘인지" 헷갈려했다는
+        // 피드백(방향을 안내하는 표시가 전혀 없었다) — 칸 아래에 요일을 작게 붙이고,
+        // 오늘 칸만 "오늘" 텍스트로 대체 + 강조색으로 눈에 띄게 한다.
+        final label = i == 0 ? l10n.weekHeatmapTodayLabel : DateFormat.E(locale).format(day);
         return Padding(
           padding: const EdgeInsets.only(right: 4),
-          child: Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: intensity),
-              borderRadius: BorderRadius.circular(4),
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: intensity),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 2),
+              SizedBox(
+                width: 20,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: AppTypography.caption.copyWith(
+                      fontSize: 10,
+                      color: i == 0 ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                      fontWeight: i == 0 ? FontWeight.w700 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       }),

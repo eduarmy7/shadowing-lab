@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
@@ -16,6 +17,20 @@ import '../providers/purchase_providers.dart';
 import '../providers/repository_providers.dart';
 import 'shadowing_controller.dart';
 import 'shadowing_options_sheet.dart';
+
+// 2026-08-27 추가 — 목록의 합치기(⧉) 버튼이 눈에 잘 안 띈다는 피드백에 대한 두 번째
+// 대응(첫 번째는 아이콘/색 구분, 위 `_SentenceListView` 참고): 한꺼번에 보기에 처음
+// 들어왔을 때 1회성 안내 배너를 보여준다. 온보딩과 같은 패턴으로 `LocalKvStore`에
+// "봤다" 플래그를 영구 저장(버전 키 `.v1` — 문구를 나중에 크게 바꾸면 `.v2`로 올려
+// 다시 한 번 보여줄 수 있게 해둠, `onboardingCompletedProvider` 참고)해 두 번째
+// 방문부터는 다시 뜨지 않는다.
+const _mergeHintSeenKey = 'ttara.merge_hint_seen.v1';
+
+final mergeHintSeenProvider = FutureProvider<bool>((ref) async {
+  final store = ref.watch(localKvStoreProvider);
+  final seen = await store.getJson<bool>(_mergeHintSeenKey, (d) => d as bool);
+  return seen ?? false;
+});
 
 /// #5 쉐도잉 학습 화면 — 앱의 심장. 화면에는 딱 4가지만: 문장 카드, 반복 진행 상태,
 /// 재생/말하기 전환 원형 트리거(녹음은 하지 않음 — 재생↔말하기 단계 표시용), 최소
@@ -235,6 +250,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
               child: isListMode
                   ? Column(
                       children: [
+                        const _MergeHintBanner(),
                         Expanded(
                           child: _SentenceListView(
                             segments: state.segments,
@@ -383,6 +399,58 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
           ],
         ),
       ),
+      ),
+    );
+  }
+}
+
+/// 2026-08-27 추가 — 한꺼번에 보기 최초 진입 시 뜨는 1회성 합치기 기능 안내 배너.
+/// 닫기(X)를 누르면 [mergeHintSeenProvider] 뒤의 플래그가 영구 저장되어 다시는 뜨지
+/// 않는다. 로딩 중(`AsyncValue` 미확정)엔 "이미 봤다"로 취급해 숨겨둔다 — 저장된 값을
+/// 읽어오는 짧은 순간에 배너가 한 번 번쩍였다 사라지는 걸 막기 위해서다.
+class _MergeHintBanner extends ConsumerWidget {
+  const _MergeHintBanner();
+
+  Future<void> _dismiss(WidgetRef ref) async {
+    await ref.read(localKvStoreProvider).setJson(_mergeHintSeenKey, true);
+    ref.invalidate(mergeHintSeenProvider);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seen = ref.watch(mergeHintSeenProvider).valueOrNull ?? true;
+    if (seen) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+      child: Material(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          child: Row(
+            children: [
+              Icon(Icons.merge, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  l10n.mergeHintBannerMessage,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                color: theme.colorScheme.primary,
+                tooltip: l10n.mergeHintBannerDismiss,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _dismiss(ref),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -564,6 +632,7 @@ class _SentenceListViewState extends State<_SentenceListView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final isDark = theme.brightness == Brightness.dark;
     final visibleIndices = _visibleIndices;
 
     if (visibleIndices.isEmpty) {
@@ -656,15 +725,25 @@ class _SentenceListViewState extends State<_SentenceListView> {
                   // 편집 두 액션 버튼만 온보딩 화면(`onboardingPage3~6`)과 같은 연한
                   // 원형 배경으로 감싸 완료체크(초록)/깃발(빨강)과 시각적으로 구분되게
                   // 한다. 마지막 문장은 합칠 다음이 없으니 숨긴다.
+                  //
+                  // 2026-08-27: 실사용 피드백 두 가지 — (1) 합치기 버튼이 편집 버튼과
+                  // 색이 똑같아 눈에 잘 안 띈다 → 편집 버튼만 진한 파랑 계열
+                  // (`AppColors.pencilAccent*`)로 분리해 서로 구분되게 한다. (2) 옛
+                  // `Icons.call_merge`(원래 "통화 병합" 용도로 만들어진 얇은 아이콘)
+                  // 글자가 이 작은 크기에선 흐릿하게 보인다 → 더 굵고 또렷한
+                  // `Icons.merge`로 교체, 살짝 크기도 키움(16→18).
                   if (i < widget.segments.length - 1)
                     Padding(
                       padding: const EdgeInsets.only(left: 2),
                       child: CircleIconButton(
-                        icon: Icons.call_merge,
-                        backgroundColor: theme.colorScheme.primaryContainer,
+                        icon: Icons.merge,
+                        // 2026-08-27: 편집 버튼이 진한 파랑으로 도드라지고 나니 상대적으로
+                        // 합치기 버튼(기존 primaryContainer)이 아이콘과 배경 톤이 비슷해
+                        // 묻혀 보인다는 피드백 — 배경만 더 옅게 빼고 아이콘 색은 그대로 둔다.
+                        backgroundColor: isDark ? AppColors.mergeContainerDark : AppColors.mergeContainerLight,
                         iconColor: theme.colorScheme.primary,
-                        size: 30,
-                        iconSize: 16,
+                        size: 32,
+                        iconSize: 18,
                         semanticLabel: l10n.mergeWithNextSentence,
                         onTap: () => widget.onMergeWithNext(i),
                       ),
@@ -672,11 +751,11 @@ class _SentenceListViewState extends State<_SentenceListView> {
                   Padding(
                     padding: const EdgeInsets.only(left: 4),
                     child: CircleIconButton(
-                      icon: Icons.edit_outlined,
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      iconColor: theme.colorScheme.primary,
-                      size: 30,
-                      iconSize: 16,
+                      icon: Icons.edit,
+                      backgroundColor: isDark ? AppColors.pencilContainerDark : AppColors.pencilContainerLight,
+                      iconColor: isDark ? AppColors.pencilAccentDark : AppColors.pencilAccentLight,
+                      size: 32,
+                      iconSize: 18,
                       semanticLabel: l10n.editThisSentence,
                       onTap: () => widget.onEditSentence(i),
                     ),
