@@ -36,6 +36,12 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // 2026-08-28 추가 — 스토어 결제가 막힌 자녀 계정 태블릿에 사이드로드할 "가족용
+        // 광고 없음" 특수 빌드가 실제 스토어 배포판과 기기 화면에서도 확실히 구분되도록,
+        // 앱 이름을 빌드 시점 환경변수로 바꿀 수 있게 한다. 지정 안 하면(일반 빌드, 스토어
+        // 빌드 전부 포함) 항상 원래 이름 "쉐도잉랩" 그대로 — 기본 배포 흐름엔 전혀 영향 없다.
+        manifestPlaceholders["appLabel"] = System.getenv("FAMILY_APP_LABEL") ?: "쉐도잉랩"
     }
 
     signingConfigs {
