@@ -1,7 +1,7 @@
 name: ttara
 description: "쉐도잉랩(ShadowingLab) — 자동으로 나눠주는 진짜 쉐도잉. 영어 쉐도잉 학습 앱"
 publish_to: 'none'
-version: 1.0.0+15
+version: 1.0.1+15
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -74,6 +74,11 @@ dependencies:
   uuid: ^4.5.1
   intl: ^0.20.2
   collection: ^1.18.0
+  # 2026-08-28: 마이 탭 "버전 정보"가 실제 설치된 빌드와 무관하게 하드코딩된
+  # '1.0.0'만 보여주던 문제 수정용 — 기기에 실제로 깔린 versionName/빌드번호를
+  # 런타임에 읽어온다. 이전까지는 다른 패키지(google_mobile_ads 등)의 전이
+  # 의존성으로만 존재해 직접 import하기엔 위험했다.
+  package_info_plus: ^9.0.1
   # 2026-08-22: 한글 뜻 화면에 문장이 길면 한 줄로 욱여넣느라 글자가 너무 작아지던
   # 문제 수정용 — 순수 Dart(네이티브 코드 없음), 여러 줄로 줄바꿈하면서 주어진
   # 공간에 맞는 가장 큰 글자 크기를 자동으로 찾아준다.

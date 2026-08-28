@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/ads/ad_mob_ad_service.dart';
 import '../../core/ads/ad_service.dart';
 import '../../core/audio/audio_player_service.dart';
@@ -27,6 +28,16 @@ import '../../domain/repositories/stats_repository.dart';
 /// presentation 레이어(컨트롤러/화면)는 단 한 줄도 바꿀 필요가 없다.
 
 final localKvStoreProvider = Provider<LocalKvStore>((ref) => LocalKvStore());
+
+// 2026-08-28 추가 — 마이 탭 하단 "버전 정보"가 실제로는 `AppConstants.appVersion`에
+// 박아둔 '1.0.0' 문자열 그대로였다. pubspec.yaml의 versionName(1.0.0)은 이번 세션
+// 내내 안 바뀌었고 실제로 달라지는 건 빌드 번호(+9→+11→...→+15)뿐인데, 그 값은
+// 애초에 이 화면에 반영된 적이 없었다 — 그래서 릴리즈를 아무리 올려도 사용자
+// 눈에는 항상 "1.0.0"으로만 보여 어느 버전이 깔려있는지 구분이 안 됐다(실사용자
+// 제보). 하드코딩 상수를 수동으로 매번 맞추는 대신, 기기에 실제로 설치된 빌드의
+// 진짜 버전/빌드번호를 `package_info_plus`로 읽어와 항상 정확하게 표시한다 —
+// 이러면 앞으로 이 값을 깜빡하고 안 올려도 절대 stale해지지 않는다.
+final packageInfoProvider = FutureProvider<PackageInfo>((ref) => PackageInfo.fromPlatform());
 
 final coverArtExtractorProvider = Provider<CoverArtExtractor>((ref) => CoverArtExtractor());
 

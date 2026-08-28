@@ -5,13 +5,6 @@ abstract class AppConstants {
   static const String appNameEn = 'ShadowingLab';
   static const String appTagline = '내 파일로, 진짜 쉐도잉';
 
-  /// 마이 탭에 표시되는 앱 버전 — 이전엔 `my_home_screen.dart`/구 `settings_screen.dart`
-  /// 두 곳에 '1.0.0'이 따로 하드코딩돼 있었다(2026-08-10 정리). 실제 배포용 버전이
-  /// 최종 결정되면 여기 한 곳만 바꾸면 된다 — `pubspec.yaml`의 `version:` 필드와는
-  /// 별개 표시값(스토어 빌드 번호 관리용 필드를 그대로 노출하지 않기 위함)이니, 둘 다
-  /// 갱신해야 한다면 함께 바꿔줄 것.
-  static const String appVersion = '1.0.0';
-
   /// 지원 미디어 확장자 (00_input.md, 01_ux_design.md #2 화면 기준).
   static const List<String> supportedAudioExtensions = ['mp3', 'm4a', 'wav'];
   static const List<String> supportedVideoExtensions = ['mp4', 'mov'];

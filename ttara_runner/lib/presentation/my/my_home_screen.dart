@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
@@ -12,6 +11,7 @@ import '../common_widgets/ad_removal_sheet.dart';
 import '../common_widgets/skeleton_loader.dart';
 import '../home/home_controller.dart';
 import '../providers/purchase_providers.dart';
+import '../providers/repository_providers.dart';
 
 /// #10 마이 홈 — 스트릭 요약, 광고 제거 구매 상태, 설정/기록 메뉴.
 class MyHomeScreen extends ConsumerWidget {
@@ -23,6 +23,7 @@ class MyHomeScreen extends ConsumerWidget {
     final semantic = theme.extension<AppSemanticColors>()!;
     final statsAsync = ref.watch(userStatsProvider);
     final adsRemovedAsync = ref.watch(adsRemovedProvider);
+    final packageInfoAsync = ref.watch(packageInfoProvider);
     final adsRemoved = adsRemovedAsync.maybeWhen(data: (v) => v, orElse: () => false);
     final l10n = AppLocalizations.of(context)!;
 
@@ -107,7 +108,18 @@ class MyHomeScreen extends ConsumerWidget {
           const Divider(height: AppSpacing.lg),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Text(l10n.versionText(AppConstants.appVersion), style: theme.textTheme.bodySmall),
+            // 2026-08-28: 이전엔 `AppConstants.appVersion`에 박아둔 '1.0.0' 문자열을
+            // 그대로 보여줘서, 빌드 번호(+9→...→+15)가 아무리 올라가도 사용자 눈엔
+            // 항상 같은 버전으로 보였다(실사용자 제보 — 업데이트됐는지 구분이 안 됨).
+            // 실제 설치된 빌드에서 읽은 진짜 버전/빌드번호(`packageInfoProvider`)를
+            // 보여줘 항상 정확하게 유지되도록 한다.
+            child: Text(
+              packageInfoAsync.maybeWhen(
+                data: (info) => l10n.versionText('${info.version} (${info.buildNumber})'),
+                orElse: () => l10n.versionText('...'),
+              ),
+              style: theme.textTheme.bodySmall,
+            ),
           ),
         ],
       ),
