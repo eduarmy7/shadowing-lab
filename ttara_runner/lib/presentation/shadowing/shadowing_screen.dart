@@ -53,11 +53,17 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     super.initState();
     // Hands-free 모드의 핵심 전제조건 — 학습 중 화면 꺼짐 방지.
     WakelockPlus.enable();
+    // 2026-08-28 추가 — `isShadowingScreenMountedProvider` 참고: 라우터 위치 문자열
+    // 대신 이 화면의 마운트 여부를 직접 신뢰할 수 있는 신호로 쓴다.
+    Future.microtask(() {
+      if (mounted) ref.read(isShadowingScreenMountedProvider.notifier).state = true;
+    });
   }
 
   @override
   void dispose() {
     WakelockPlus.disable();
+    ref.read(isShadowingScreenMountedProvider.notifier).state = false;
     super.dispose();
   }
 

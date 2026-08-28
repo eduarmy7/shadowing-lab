@@ -113,6 +113,17 @@ class ShadowingSessionState {
   }
 }
 
+/// 2026-08-28 추가 — 앱을 백그라운드에서 재개할 때 "학습 화면이 지금 떠 있었는지"를
+/// 판단하기 위한 신호. 원래는 `router.routerDelegate.currentConfiguration.uri`(현재
+/// 라우터 위치 문자열)로 판단했는데, 실기기 로그로 확인해보니 `/shadowing/:id`가
+/// `StatefulShellRoute` 바깥에 push되는 라우트라 그런지, 학습 화면이 실제로 화면에
+/// 떠 있는 도중에도 이 값이 계속 '/home'으로 잘못 읽히는 현상이 있었다(정확한 GoRouter
+/// 내부 원인은 특정 못함) — 그래서 `main.dart`의 "세션 끝났으면 홈으로" 체크가 항상
+/// "이미 홈이네, 할 일 없음"으로 오판하고 아무 것도 안 했다. 대신 이 화면의 State가
+/// 실제로 마운트돼 있는지를 직접 추적하는 훨씬 신뢰할 수 있는 신호로 대체한다
+/// (`shadowing_screen.dart`의 `initState`/`dispose`에서 갱신).
+final isShadowingScreenMountedProvider = StateProvider<bool>((ref) => false);
+
 final shadowingControllerProvider = StateNotifierProvider.autoDispose
     .family<ShadowingController, ShadowingSessionState, String>(
   (ref, mediaId) => ShadowingController(ref, mediaId),

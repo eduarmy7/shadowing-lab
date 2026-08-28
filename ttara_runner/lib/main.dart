@@ -13,6 +13,7 @@ import 'domain/entities/learning_settings.dart';
 import 'l10n/gen/app_localizations.dart';
 import 'presentation/my/settings_providers.dart';
 import 'presentation/providers/repository_providers.dart';
+import 'presentation/shadowing/shadowing_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -113,6 +114,18 @@ class TtaraApp extends ConsumerStatefulWidget {
 /// 완료가 아니라 그날의 세션 종료를 뜻했다 — 1000문장짜리 책을 5문장만 보고
 /// 오늘 그만둬도 "마친" 것이다. 그래서 원래의 mediaItem 신호로 되돌아가되, 이제는
 /// dispose()가 확실히 지워주므로 믿을 수 있다.
+///
+/// **2026-08-28 — 세 번째 버그(재발) 원인 발견**: "다 지웠다 다시 열어도 학습 화면이
+/// 또 나온다"는 재현 보고로 실기기 로그를 다시 찍어보니, 위 두 번째 신호(mediaItem)는
+/// 정확히 null로 잘 지워지고 있었다 — 문제는 **"지금 학습 화면에 있는가"를 판단하던
+/// `router.routerDelegate.currentConfiguration.uri` 자체가 신뢰할 수 없었다**는 것.
+/// `/shadowing/:id`가 `StatefulShellRoute` 바깥에 push되는 라우트라서 그런지, 학습
+/// 화면이 실제로 화면에 떠 있는 도중에도 이 값이 계속 '/home'으로 잘못 읽혔다(실기기
+/// 로그로 확인 — `ShadowingScreen.build`가 찍히는 바로 그 순간에도 location은 '/home').
+/// 그래서 아래 "이미 홈이면 할 일 없음" 조기 return이 항상 true로 나와 실제로는
+/// `router.go('/home')`가 단 한 번도 호출되지 않았던 것이 진짜 원인 — mediaItem 신호는
+/// 처음부터 문제가 없었다. 라우터 위치 문자열 대신, 학습 화면 State의 마운트 여부를
+/// 직접 추적하는 [isShadowingScreenMountedProvider]로 교체했다.
 class _TtaraAppState extends ConsumerState<TtaraApp> with WidgetsBindingObserver {
   @override
   void initState() {
@@ -132,11 +145,9 @@ class _TtaraAppState extends ConsumerState<TtaraApp> with WidgetsBindingObserver
   }
 
   void _returnHomeIfSessionEnded() {
-    final router = ref.read(appRouterProvider);
-    final location = router.routerDelegate.currentConfiguration.uri.toString();
-    if (!location.startsWith('/shadowing/')) return;
+    if (!ref.read(isShadowingScreenMountedProvider)) return;
     final hasActiveSession = ref.read(audioHandlerProvider).mediaItem.value != null;
-    if (!hasActiveSession) router.go('/home');
+    if (!hasActiveSession) ref.read(appRouterProvider).go('/home');
   }
 
   @override
