@@ -301,5 +301,9 @@
   "mergeHintBannerMessage": "문장 옆 합치기 아이콘을 누르면 다음 문장과 바로 합칠 수 있어요",
   "mergeHintBannerDismiss": "닫기",
 
-  "weekHeatmapTodayLabel": "오늘"
+  "weekHeatmapTodayLabel": "오늘",
+
+  "heatmapLegendLow": "1~10문장",
+  "heatmapLegendMid": "11~20문장",
+  "heatmapLegendHigh": "21문장 이상"
 }

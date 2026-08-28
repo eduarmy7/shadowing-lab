@@ -301,5 +301,9 @@
   "mergeHintBannerMessage": "文章の横にある結合アイコンをタップすると、次の文章とすぐに結合できます。",
   "mergeHintBannerDismiss": "閉じる",
 
-  "weekHeatmapTodayLabel": "今日"
+  "weekHeatmapTodayLabel": "今日",
+
+  "heatmapLegendLow": "1~10文",
+  "heatmapLegendMid": "11~20文",
+  "heatmapLegendHigh": "21文以上"
 }

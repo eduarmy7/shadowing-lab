@@ -301,5 +301,9 @@
   "mergeHintBannerMessage": "Tap the merge icon next to a sentence to combine it with the next one.",
   "mergeHintBannerDismiss": "Close",
 
-  "weekHeatmapTodayLabel": "Today"
+  "weekHeatmapTodayLabel": "Today",
+
+  "heatmapLegendLow": "1-10 sentences",
+  "heatmapLegendMid": "11-20 sentences",
+  "heatmapLegendHigh": "21+ sentences"
 }

@@ -199,39 +199,83 @@ class _HeatmapGrid extends StatelessWidget {
 
   static const _weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 
-  Color _colorFor(ThemeData theme, int count) {
-    if (count == 0) return theme.colorScheme.surfaceContainerHighest;
-    if (count < 5) return theme.colorScheme.primary.withValues(alpha: 0.3);
-    if (count < 15) return theme.colorScheme.primary.withValues(alpha: 0.6);
+  // 2026-08-28 조정 — 사용자 요청으로 구간을 "1~10 / 11~20 / 21+"로 재정의.
+  // count==0은 색을 아예 칠하지 않는다(칸을 전부 칠하면 산만하다는 피드백) —
+  // 공부한 날만 원이 도드라지게 보이는 게 목표.
+  Color? _colorFor(ThemeData theme, int count) {
+    if (count == 0) return null;
+    if (count <= 10) return theme.colorScheme.primary.withValues(alpha: 0.35);
+    if (count <= 20) return theme.colorScheme.primary.withValues(alpha: 0.65);
     return theme.colorScheme.primary;
   }
+
+  // 2026-08-28 추가 — 목록/편집 화면의 합치기 아이콘 배지(32dp, `_RoundActionIcon`
+  // 참고)보다 살짝 더 크게 맞춘 지름. 예전엔 그리드 칸 전체(정사각형)를 색으로
+  // 채웠는데, 이제는 칸 안에 고정 크기 원만 그려서 달력이 전체적으로 더
+  // 여유있고(=작아 보이고) 공부 안 한 날과 확실히 구분되게 한다.
+  static const double _dotDiameter = 34;
 
   Widget _dayCell(ThemeData theme, AppLocalizations l10n, int year, int month, int day) {
     final key = _dateKey(year, month, day);
     final count = heatmap[key] ?? 0;
     final isSelected = day == selectedDay;
+    final fillColor = _colorFor(theme, count);
     return Tooltip(
       message: l10n.dateSentencesTooltip(month, day, count),
       child: InkWell(
         onTap: () => onDaySelected(day),
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: EdgeInsets.all(isSelected ? 2 : 0),
-          decoration: BoxDecoration(
-            color: isSelected ? theme.colorScheme.onSurface : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
+        customBorder: const CircleBorder(),
+        child: Center(
           child: Container(
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: _colorFor(theme, count), borderRadius: BorderRadius.circular(4)),
-            child: Text(
-              '$day',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: count == 0 ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.onPrimary,
+            padding: EdgeInsets.all(isSelected ? 2 : 0),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected ? theme.colorScheme.onSurface : Colors.transparent,
+            ),
+            child: Container(
+              width: _dotDiameter,
+              height: _dotDiameter,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: fillColor),
+              child: Text(
+                '$day',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: fillColor == null ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.onPrimary,
+                ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // 2026-08-28 추가 — 색 구간 안내. 원 색만으로는 기준을 유추할 수 없다는 피드백으로
+  // 달력 바로 아래에 최소한의 범례를 붙인다.
+  Widget _legend(ThemeData theme, AppLocalizations l10n) {
+    Widget dot(Color? color) => Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color ?? theme.colorScheme.surfaceContainerHighest),
+        );
+    Widget item(Color? color, String label) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            dot(color),
+            const SizedBox(width: 4),
+            Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ],
+        );
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 4,
+        children: [
+          item(theme.colorScheme.primary.withValues(alpha: 0.35), l10n.heatmapLegendLow),
+          item(theme.colorScheme.primary.withValues(alpha: 0.65), l10n.heatmapLegendMid),
+          item(theme.colorScheme.primary, l10n.heatmapLegendHigh),
+        ],
       ),
     );
   }
@@ -252,13 +296,17 @@ class _HeatmapGrid extends StatelessWidget {
       children: [
         Text(l10n.monthGroupLabel(year, month), style: theme.textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
+        // 2026-08-28: 달력 전체 크기를 살짝 줄여달라는 요청 — 칸 자체를 좀 더
+        // 좁게(childAspectRatio↑ = 칸이 더 납작하게) 잡고 칸 사이 간격도 줄였다.
+        // 실제 색이 칠해지는 원은 위 [_dotDiameter]로 고정돼 있어 칸이 줄어도
+        // 원 크기 자체는 유지된다.
         GridView.count(
           crossAxisCount: 7,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 4,
-          crossAxisSpacing: 4,
-          childAspectRatio: 1,
+          mainAxisSpacing: 2,
+          crossAxisSpacing: 2,
+          childAspectRatio: 1.15,
           children: [
             for (final w in _weekdayLabels)
               Center(child: Text(w, style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600))),
@@ -266,6 +314,7 @@ class _HeatmapGrid extends StatelessWidget {
             for (var day = 1; day <= daysInMonth; day++) _dayCell(theme, l10n, year, month, day),
           ],
         ),
+        _legend(theme, l10n),
       ],
     );
   }
