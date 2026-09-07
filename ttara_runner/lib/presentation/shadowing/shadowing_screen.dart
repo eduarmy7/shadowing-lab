@@ -85,7 +85,11 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
   Future<void> _exitToHome(BuildContext context) async {
     if (_exiting) return;
     _exiting = true;
-    final adsRemoved = await ref.read(purchaseRepositoryProvider).watchAdsRemoved().first;
+    // 2026-09-07 버그 수정 — 근본 원인: 여기만 `adsRemovedProvider`(가족용 빌드의
+    // FAMILY_ADS_FREE 스위치 반영)를 거치지 않고 `purchaseRepositoryProvider`를 직접
+    // 읽고 있었다 — 그래서 "가족용 광고 없음" 사이드로드 빌드에서도 이 경로(닫기/
+    // 뒤로가기)로 나갈 때만 전면 광고가 떴다(실사용자 보고: "팝업광고가 뜨더라고").
+    final adsRemoved = await ref.read(adsRemovedProvider.future);
     if (!adsRemoved) {
       await ref.read(adServiceProvider).showInterstitial();
     }

@@ -7,6 +7,7 @@ import '../../domain/entities/user_stats.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../common_widgets/primary_button.dart';
 import '../home/home_controller.dart';
+import '../providers/purchase_providers.dart';
 import '../providers/repository_providers.dart';
 
 /// #6 학습 완료 요약 — 세션 종료 시 진입. 전면 광고는 여기서만 트리거된다
@@ -26,7 +27,11 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen> {
     // 세션 종료 시점의 자연스러운 전환 지점 — 스킵 가능 전면 광고(01_ux_design.md).
     // "광고 제거" 구매 완료 사용자에게는 전면 광고를 아예 트리거하지 않는다.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final adsRemoved = await ref.read(purchaseRepositoryProvider).watchAdsRemoved().first;
+      // 2026-09-07 버그 수정 — 근본 원인: 여기도 `purchaseRepositoryProvider`를 직접
+      // 읽어 가족용 빌드의 FAMILY_ADS_FREE 스위치(`adsRemovedProvider` 참고)를 무시하고
+      // 있었다 — 학습을 끝까지 마치고 이 요약 화면에 들어오면 가족용 빌드에서도 전면
+      // 광고가 떴다.
+      final adsRemoved = await ref.read(adsRemovedProvider.future);
       if (!mounted || adsRemoved) return;
       ref.read(adServiceProvider).showInterstitial(minSkipSeconds: 5);
     });
