@@ -371,6 +371,12 @@ class UploadController extends StateNotifier<UploadState> {
     String? translationLanguageClassId,
     String? nonEnglishSingleTrackLabel,
   }) async {
+    // 2026-09-01 버그 수정: 시스템 파일 피커가 오래 떠 있는 동안(다중선택 등) 화면이
+    // 이미 사라진 상태(예: 사용자가 그 사이 뒤로가기)라면, 이 시점에 그대로 `state =`를
+    // 호출해 이미 dispose된 StateNotifier에 접근하며 크래시가 났다("Tried to use
+    // UploadController after dispose was called" — 실기기 로그로 확인). 다른 state
+    // 대입들은 이미 `if (mounted)`로 감싸져 있었는데 이 첫 대입만 빠져 있었다.
+    if (!mounted) return null;
     state = UploadState(
       phase: UploadPhase.uploading,
       fileName: fileName,

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audio/study_audio_handler.dart';
 import '../../core/constants/app_constants.dart';
 import '../../domain/entities/learning_settings.dart';
+import '../../domain/entities/media_item.dart';
 import '../../domain/entities/sentence_segment.dart';
 import '../../domain/entities/user_stats.dart';
 import '../providers/repository_providers.dart';
@@ -40,6 +41,20 @@ class ShadowingSessionState {
   // 정확히 절반)로 고정해뒀었다("파형이 반쪽만 나온다"는 피드백의 원인). 이제
   // positionStream을 실시간으로 반영한다.
   final double playbackProgressRatio;
+  // 2026-09-01 추가 — 영상 파일이면 "한 문장씩 보기"에서 무음 비디오를 겹쳐 보여주기
+  // 위해 화면(위젯)에서 알아야 하는 정보. 실제 오디오 재생과는 무관(AudioPlayerService가
+  // 그대로 전담) — 표시 여부 판단과 파일 경로 전달용이다.
+  final MediaSourceType mediaSourceType;
+  final String mediaPath;
+  // 2026-09-01 추가 — "듣기" 단계가 새로 시작될 때마다(같은 문장 반복 포함) 증가하는
+  // 값. "공간없이" 설정처럼 듣기→말하기→듣기 전환이 한 프레임 안에서 벌어지면,
+  // [phase]의 listening→speaking→listening 전환 중간값이 위젯 리빌드에 아예 반영되지
+  // 않고 건너뛰어질 수 있다(Flutter가 짧게 스쳐가는 상태를 별도 프레임으로 그리지
+  // 않음) — 그러면 SentenceVideoPlayer가 "isPlaying이 false였다가 true로 바뀜"이라는
+  // 신호를 영영 못 받아 반복 2회차부터 재생을 다시 시작하지 못했다(실기기 확인: 5번
+  // 반복 중 1회차만 영상이 움직이고 2~5회차는 정지). true/false 에지 감지 대신, 매
+  // 반복 시작마다 이 값 자체가 달라지므로 놓칠 수가 없다.
+  final int playAttempt;
 
   ShadowingSessionState({
     this.segments = const [],
@@ -61,6 +76,9 @@ class ShadowingSessionState {
     this.filterFlaggedOnly = false,
     this.sentenceGapMode = SentenceGapMode.matchSentence,
     this.playbackProgressRatio = 0,
+    this.mediaSourceType = MediaSourceType.audio,
+    this.mediaPath = '',
+    this.playAttempt = 0,
   }) : sessionStartedAt = sessionStartedAt ?? DateTime.now();
 
   SentenceSegment? get currentSegment => currentIndex < segments.length ? segments[currentIndex] : null;
@@ -88,6 +106,9 @@ class ShadowingSessionState {
     bool? filterFlaggedOnly,
     SentenceGapMode? sentenceGapMode,
     double? playbackProgressRatio,
+    MediaSourceType? mediaSourceType,
+    String? mediaPath,
+    int? playAttempt,
   }) {
     return ShadowingSessionState(
       segments: segments ?? this.segments,
@@ -109,6 +130,9 @@ class ShadowingSessionState {
       filterFlaggedOnly: filterFlaggedOnly ?? this.filterFlaggedOnly,
       sentenceGapMode: sentenceGapMode ?? this.sentenceGapMode,
       playbackProgressRatio: playbackProgressRatio ?? this.playbackProgressRatio,
+      mediaSourceType: mediaSourceType ?? this.mediaSourceType,
+      mediaPath: mediaPath ?? this.mediaPath,
+      playAttempt: playAttempt ?? this.playAttempt,
     );
   }
 }
@@ -140,6 +164,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   final String mediaId;
 
   int _gen = 0;
+  int _playAttempt = 0; // ShadowingSessionState.playAttempt 문서 참고.
   String _audioSource = '';
   String _fileName = '';
   StreamSubscription<Duration>? _overrunWatchdogSub;
@@ -181,6 +206,8 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         showTranslation: settings.autoShowTranslation,
         sentenceGapMode: settings.sentenceGapMode,
         viewMode: initialViewMode,
+        mediaSourceType: media?.sourceType ?? MediaSourceType.audio,
+        mediaPath: _audioSource,
         // 2026-08-10: 완료 체크는 문장 자체에 영구 저장된 값에서 매번 다시 계산한다
         // (세션 한정 Set이 아니다) — 그래야 화면을 나갔다 들어와도 유지되고,
         // 학습 중 병합/분리를 해도 [reloadSegments]가 최신 인덱스 기준으로
@@ -321,10 +348,15 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       if (segment == null) return;
 
       // ── 1) 원어민 음성 재생 ──────────────────────────────────
-      state = state.copyWith(phase: ShadowingPhase.listening, clearError: true, awaitingResume: false);
+      state = state.copyWith(
+        phase: ShadowingPhase.listening,
+        clearError: true,
+        awaitingResume: false,
+        playAttempt: ++_playAttempt,
+      );
       final shouldResume = isFirstIteration && resumeFromPause;
       isFirstIteration = false;
-      final played = await _playWithRetry(segment.startMs, segment.endMs, seek: !shouldResume);
+      final played = await _playWithRetry(segment.startMs, segment.endMs, seek: !shouldResume, myGen: myGen);
       if (myGen != _gen || !mounted) return;
       if (!played) return; // 재시도까지 실패 — 사용자가 원형 버튼으로 수동 재시작
 
@@ -333,7 +365,16 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
 
       // ── 2) 따라 말하기 (앱은 녹음/분석하지 않음 — 사용자가 소리 내어 말할 시간만 확보) ──
       state = state.copyWith(phase: ShadowingPhase.speaking);
-      final speakingDurationMs = state.sentenceGapMode.gapMsFor(segment.durationMs);
+      var speakingDurationMs = state.sentenceGapMode.gapMsFor(segment.durationMs);
+      // 2026-09-01 추가 — 영상 모드 전용 최소 간격. "공간없이"(0ms)처럼 듣기→말하기
+      // 전환이 한 프레임 안에서 벌어질 만큼 짧으면, Flutter가 이 짧은 "말하기" 상태를
+      // 별도 프레임으로 그리지 않고 건너뛸 수 있어 SentenceVideoPlayer가 "정지했다가
+      // 다시 재생"이라는 신호를 놓칠 수 있다(실기기로 여러 차례 확인된 문제). 오디오
+      // 전용 콘텐츠의 "공간없이" 의미(정말 간격 없음)는 그대로 두고, 영상 모드일
+      // 때만 최소 500ms를 보장해 화면이 이 전환을 확실히 한 프레임 이상 그리게 한다.
+      if (state.mediaSourceType == MediaSourceType.video) {
+        speakingDurationMs = speakingDurationMs.clamp(500, 1 << 31);
+      }
       await Future.delayed(Duration(milliseconds: speakingDurationMs));
       if (myGen != _gen || !mounted) return;
 
@@ -375,7 +416,17 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     }
   }
 
-  Future<bool> _playWithRetry(int startMs, int endMs, {bool isRetry = false, bool seek = true}) async {
+  Future<bool> _playWithRetry(int startMs, int endMs, {bool isRetry = false, bool seek = true, int? myGen}) async {
+    // 2026-09-01 버그 수정: 호출자(_runSentenceLoop/playListFromCurrent)의 세대 번호를
+    // 넘겨받아, 그 세대가 이미 낡았으면(사용자가 그 사이 다른 문장을 탭해 새 세대가
+    // 시작됐으면) 아래 positionStream 리스너가 더는 state를 건드리지 않게 한다. 예전엔
+    // `mounted`(컨트롤러 자체가 dispose됐는지)만 확인했는데, 그거로는 "이 재생 시도
+    // 자체는 이미 낡았지만 컨트롤러는 여전히 살아있고 새 재생이 진행 중인" 흔한 경우를
+    // 못 걸렀다 — 사용자가 목록에서 문장을 빠르게 연달아 탭하면, 오래된 시도의 리스너가
+    // 계속 살아남아 최신 재생과 뒤섞여 state를 계속 덮어쓰면서 화면(재생 중 표시,
+    // 진행률)이 실제 재생 위치를 못 따라가는 원인이 됐다(실사용자 보고: 화면엔 30번인데
+    // 실제로는 57번이 재생 중).
+    final effectiveGen = myGen ?? _gen;
     StreamSubscription<Duration>? positionSub;
     try {
       // 2026-08-09: seek:false(정지 지점에서 이어재생)일 때는 진행률을 0으로 리셋하지
@@ -392,9 +443,17 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         // finally에서 하지만 그 사이 이벤트가 이미 큐에 있었을 수 있음) — mounted
         // 확인 없이 state를 쓰면 "Tried to use ShadowingController after dispose"로
         // 앱이 죽는다(실기기에서 재현: 문장을 몇 개 넘긴 뒤 재생하면 크래시).
-        if (!mounted) return;
+        if (!mounted || effectiveGen != _gen) return;
         final ratio = ((pos.inMilliseconds - startMs) / segmentDurationMs).clamp(0.0, 1.0);
-        state = state.copyWith(playbackProgressRatio: ratio);
+        // 2026-09-01 버그 수정: 위 확인들(컨트롤러 dispose 여부 + 세대 번호)을 다 통과해도,
+        // 화면 전환 타이밍에 따라 StateNotifier는 살아있지만 그걸 구독하던 위젯 Element가
+        // 이미 defunct가 되어 있는 아주 짧은 찰나가 있을 수 있다 — 그 경우 `state = ...`가
+        // 리스너에게 알리는 과정에서 "Element.markNeedsBuild: _lifecycleState != defunct"
+        // 예외를 던진다. 이 갱신은 진행률 표시용 부가 정보일 뿐이라, 실패해도 학습 흐름
+        // 자체에는 영향이 없다 — 조용히 넘어가 다음 정상 이벤트에서 다시 시도한다.
+        try {
+          state = state.copyWith(playbackProgressRatio: ratio);
+        } catch (_) {}
       });
       await ref.read(audioPlayerServiceProvider).playSegmentOnce(
             startMs: startMs,
@@ -425,7 +484,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         await Future.delayed(const Duration(milliseconds: 500));
         // 재시도는 항상 처음(seek:true)부터 — 실패 처리 과정에서 플레이어가 하드
         // 리셋됐을 수 있어(_hardReset) 이어재생 위치를 더는 신뢰할 수 없다.
-        return _playWithRetry(startMs, endMs, isRetry: true);
+        return _playWithRetry(startMs, endMs, isRetry: true, myGen: effectiveGen);
       }
       return false;
     } finally {
@@ -549,8 +608,8 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     _gen++; // 진행 중이던 루프 중단
     await ref.read(audioPlayerServiceProvider).stopSegment();
     if (!mounted) return;
-    state = state.copyWith(phase: ShadowingPhase.listening);
-    await _playWithRetry(segment.startMs, segment.endMs);
+    state = state.copyWith(phase: ShadowingPhase.listening, playAttempt: ++_playAttempt);
+    await _playWithRetry(segment.startMs, segment.endMs, myGen: _gen);
     _runSentenceLoop(); // 현재 반복 횟수를 유지한 채 정상 루프 재개
   }
 
@@ -600,6 +659,16 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   /// 자동으로 멈춘다(요약 화면으로 넘기지 않는다 — 그건 한 문장씩 보기의 몫).
   Future<void> playListFromCurrent() async {
     final myGen = ++_gen;
+    // 2026-09-01 버그 수정: 한 문장씩 보기의 skipToNext/skipToPrevious/restartCurrentStep은
+    // 전부 새 재생을 걸기 전에 먼저 stopSegment()로 이전 재생을 확실히 정리하는데,
+    // 한꺼번에 보기 쪽(이 함수 — selectSentence/previousInList/nextInList가 전부 이걸
+    // 거친다)은 그 정리가 빠져 있었다. 사용자가 목록에서 다른 문장을 빠르게 연달아
+    // 탭하면, 이전 문장의 오디오가 아직 재생 중인 채로 새 문장의 seek+재생 요청이 같은
+    // AudioPlayerService 인스턴스에 겹쳐 들어가 — 실사용자 보고: "앞 문장 나오다가
+    // 갑자기 뒤 문장이 나온다"(재생 내용이 뒤섞여 들림). _gen 체크만으로는 오래된
+    // 루프가 "다음 확인 시점에" 멈추는 것뿐이라, 이미 걸어둔 재생 자체는 막지 못한다.
+    await ref.read(audioPlayerServiceProvider).stopSegment();
+    if (myGen != _gen || !mounted) return;
     while (true) {
       if (myGen != _gen || !mounted) return;
       final segment = state.currentSegment;
@@ -609,7 +678,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       while (completed < state.targetRepeats) {
         if (myGen != _gen || !mounted) return;
         state = state.copyWith(phase: ShadowingPhase.listening, clearError: true);
-        final played = await _playWithRetry(segment.startMs, segment.endMs);
+        final played = await _playWithRetry(segment.startMs, segment.endMs, myGen: myGen);
         if (myGen != _gen || !mounted) return;
         if (!played) {
           state = state.copyWith(phase: ShadowingPhase.idle);
@@ -618,7 +687,15 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         completed++;
         state = state.copyWith(completedRepeats: completed);
         if (completed < state.targetRepeats) {
-          await Future.delayed(const Duration(milliseconds: 400));
+          // 2026-09-01: 예전엔 문장 간격 설정과 무관하게 항상 고정 400ms만 쉬었다 —
+          // 사용자 요청으로 "한 문장씩 보기"와 동일하게 설정된 문장 간격
+          // ([SentenceGapMode])을 그대로 따르도록 통일한다. 간격이 실제로 있을 때만
+          // (SentenceGapMode.none이 아닐 때) phase를 speaking으로 바꿔 재생바에도
+          // 한 문장씩 보기와 동일하게 마이크 아이콘이 뜨게 한다 — "공간없이"는 원래부터
+          // 말하기 단계 개념이 없어(간격 0) idle로 남긴다.
+          final gapMs = state.sentenceGapMode.gapMsFor(segment.durationMs);
+          if (gapMs > 0) state = state.copyWith(phase: ShadowingPhase.speaking);
+          await Future.delayed(Duration(milliseconds: gapMs));
           if (myGen != _gen || !mounted) return;
         }
       }

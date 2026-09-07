@@ -5,7 +5,6 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../domain/entities/media_item.dart';
 import '../../l10n/gen/app_localizations.dart';
-import '../common_widgets/app_toast.dart';
 import '../common_widgets/primary_button.dart';
 import 'home_controller.dart';
 import 'upload_controller.dart';
@@ -133,12 +132,6 @@ class _PickerView extends StatelessWidget {
           icon: Icons.folder_open,
           label: l10n.pickFromFiles,
           onTap: () => _pick(context),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _SourceOption(
-          icon: Icons.mic_none,
-          label: l10n.justRecorded,
-          onTap: () => AppToast.show(context, l10n.comingSoonFeature, type: AppToastType.info),
         ),
         const SizedBox(height: AppSpacing.sm),
         _SourceOption(

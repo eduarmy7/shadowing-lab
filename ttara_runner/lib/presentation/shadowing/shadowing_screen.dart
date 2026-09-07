@@ -6,12 +6,14 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
+import '../../domain/entities/media_item.dart';
 import '../../domain/entities/sentence_segment.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../common_widgets/app_toast.dart';
 import '../common_widgets/circle_icon_button.dart';
 import '../common_widgets/repeat_dot_indicator.dart';
 import '../common_widgets/sentence_card.dart';
+import '../common_widgets/sentence_video_player.dart';
 import '../common_widgets/waveform_player.dart';
 import '../providers/purchase_providers.dart';
 import '../providers/repository_providers.dart';
@@ -273,6 +275,7 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                           mediaId: widget.mediaId,
                           segment: segment,
                           isPlaying: state.phase == ShadowingPhase.listening,
+                          isSpeaking: state.phase == ShadowingPhase.speaking,
                           isBuffering: state.isBuffering,
                           progressRatio: state.playbackProgressRatio,
                           completedRepeats: state.completedRepeats,
@@ -297,9 +300,12 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                       },
                       onLongPress: controller.previewAtHalfSpeed,
                       behavior: HitTestBehavior.translucent,
-                      child: Column(
-                        children: [
-                          Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final isVideo =
+                              state.mediaSourceType == MediaSourceType.video && state.mediaPath.isNotEmpty;
+
+                          final subtitleWidget = Expanded(
                             child: Center(
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
@@ -312,30 +318,56 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                                 ),
                               ),
                             ),
-                          ),
-                          Padding(
+                          );
+
+                          final mediaWidget = Padding(
                             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                            // 2026-08-06: 무음 감지 때 이미 뽑아둔 실측 진폭이 저장돼 있으면
-                            // (로컬 업로드 파일만 — 자막 파싱/라이브러리 콘텐츠는 없음) 그걸
-                            // 잘라서 진짜 파형을 그린다. 없으면 WaveformPlayer가 알아서
-                            // 장식용 표시로 폴백한다.
-                            child: Consumer(
-                              builder: (context, ref, _) {
-                                final waveform = ref.watch(segmentWaveformProvider(
-                                  (mediaId: widget.mediaId, startMs: segment.startMs, endMs: segment.endMs),
-                                ));
-                                return WaveformPlayer(
-                                  seed: segment.id,
-                                  variant: WaveformVariant.expanded,
-                                  isPlaying: state.phase == ShadowingPhase.listening,
-                                  progressRatio:
-                                      state.phase == ShadowingPhase.listening ? state.playbackProgressRatio : 0,
-                                  amplitudes: waveform.valueOrNull,
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
+                            // 2026-09-01: 영상 파일이면 파형 대신 원본 영상을 무음으로 보여준다
+                            // (실제 소리는 여전히 AudioPlayerService/WaveformPlayer 쪽 로직과
+                            // 동일하게 재생됨 — SentenceVideoPlayer 문서 참고).
+                            child: isVideo
+                                ? SentenceVideoPlayer(
+                                    // 2026-09-01: 의도적으로 segment.id로 key를 걸지 않는다 — 문장이
+                                    // 바뀔 때마다 위젯을 통째로 새로 만들면 비디오 컨트롤러를 매번
+                                    // 재생성/재초기화하게 되어 끊김이 생긴다. 같은 State가 유지된
+                                    // 채로 didUpdateWidget이 새 startMs/endMs로 seek만 하도록 한다.
+                                    videoPath: state.mediaPath,
+                                    startMs: segment.startMs,
+                                    endMs: segment.endMs,
+                                    isPlaying: state.phase == ShadowingPhase.listening,
+                                    playbackSpeed: state.playbackSpeed,
+                                    playAttempt: state.playAttempt,
+                                  )
+                                // 2026-08-06: 무음 감지 때 이미 뽑아둔 실측 진폭이 저장돼 있으면
+                                // (로컬 업로드 파일만 — 자막 파싱/라이브러리 콘텐츠는 없음) 그걸
+                                // 잘라서 진짜 파형을 그린다. 없으면 WaveformPlayer가 알아서
+                                // 장식용 표시로 폴백한다.
+                                : Consumer(
+                                    builder: (context, ref, _) {
+                                      final waveform = ref.watch(segmentWaveformProvider(
+                                        (mediaId: widget.mediaId, startMs: segment.startMs, endMs: segment.endMs),
+                                      ));
+                                      return WaveformPlayer(
+                                        seed: segment.id,
+                                        variant: WaveformVariant.expanded,
+                                        isPlaying: state.phase == ShadowingPhase.listening,
+                                        progressRatio: state.phase == ShadowingPhase.listening
+                                            ? state.playbackProgressRatio
+                                            : 0,
+                                        amplitudes: waveform.valueOrNull,
+                                      );
+                                    },
+                                  ),
+                          );
+
+                          return Column(
+                            children: [
+                              // 2026-09-01: 영상 모드에서는 영상(입모양/표정 확인용)을 위로,
+                              // 자막을 그 아래로 — 사용자 요청. 오디오 전용(파형)은 참고용
+                              // 표시라 기존처럼 자막이 위에 오는 순서를 유지한다.
+                              if (isVideo) mediaWidget else subtitleWidget,
+                              if (isVideo) subtitleWidget else mediaWidget,
+                              const SizedBox(height: AppSpacing.lg),
                           RepeatDotIndicator(
                             total: state.targetRepeats,
                             completed: state.completedRepeats,
@@ -398,7 +430,9 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                               ],
                             ),
                           ),
-                        ],
+                            ],
+                          );
+                        },
                       ),
                     ),
             ),
@@ -786,6 +820,7 @@ class _ListModePlayBar extends StatelessWidget {
   final String mediaId;
   final SentenceSegment segment;
   final bool isPlaying;
+  final bool isSpeaking;
   final bool isBuffering;
   final double progressRatio;
   final int completedRepeats;
@@ -801,6 +836,7 @@ class _ListModePlayBar extends StatelessWidget {
     required this.mediaId,
     required this.segment,
     required this.isPlaying,
+    required this.isSpeaking,
     required this.isBuffering,
     required this.progressRatio,
     required this.completedRepeats,
@@ -816,8 +852,9 @@ class _ListModePlayBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final semantic = theme.extension<AppSemanticColors>()!;
     final l10n = AppLocalizations.of(context)!;
-    final isActive = isPlaying || isBuffering;
+    final isActive = isPlaying || isBuffering || isSpeaking;
     return Padding(
       // 2026-08-07: 재생/정지 버튼 위 공간을 넓히고(md→lg) 지금 선택된 문장의 파형을
       // 보여달라는 요청 — 한 문장씩 보기에는 이미 있던 파형 표시를 한꺼번에 보기의
@@ -856,9 +893,13 @@ class _ListModePlayBar extends StatelessWidget {
               // 2026-08-06: 재생 시작을 기다리는 동안 스피너로 아이콘을 통째로 갈아치우던
               // 걸 없앴다 — 버튼 모양을 고정해서 렉처럼 보이지 않게 한다. `CircleIconButton`
               // 의 InkWell 리플이 "눌렀다"는 피드백을 대신 준다.
+              // 2026-09-01: 문장 간격이 있는 설정(공간없이가 아닐 때)에서는 "한 문장씩
+              // 보기"와 마찬가지로 반복 사이 말하기 단계 동안 마이크 아이콘을 보여준다 —
+              // 사용자 요청, "공간없이"는 말하기 단계 자체가 없어(간격 0) 그대로 재생
+              // 아이콘을 유지한다.
               CircleIconButton(
-                icon: isPlaying ? Icons.volume_up : Icons.play_arrow,
-                backgroundColor: theme.colorScheme.primary,
+                icon: isSpeaking ? Icons.mic : (isPlaying ? Icons.volume_up : Icons.play_arrow),
+                backgroundColor: isSpeaking ? semantic.success : theme.colorScheme.primary,
                 onTap: onPlay,
                 semanticLabel: l10n.repeatPlaySelected,
               ),
