@@ -167,6 +167,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   int _playAttempt = 0; // ShadowingSessionState.playAttempt 문서 참고.
   String _audioSource = '';
   String _fileName = '';
+  Uri? _coverArtUri;
   StreamSubscription<Duration>? _overrunWatchdogSub;
   bool _resyncingFromOverrun = false;
   StudyAudioHandler? _audioHandler;
@@ -178,6 +179,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   DateTime _lastProgressFlushAt = DateTime.now();
 
   ShadowingController(this.ref, this.mediaId) : super(ShadowingSessionState()) {
+    debugPrint('[ShadowingController] CREATED mediaId=$mediaId');
     _init();
   }
 
@@ -188,6 +190,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       final media = await ref.read(mediaRepositoryProvider).getById(mediaId);
       _audioSource = media?.localPath ?? '';
       _fileName = media?.fileName ?? '';
+      _coverArtUri = media?.coverArtPath != null ? Uri.file(media!.coverArtPath!) : null;
       final startIndex = media?.lastPlayedSentenceIndex ?? 0;
       // 2026-08-09: 최근학습(홈)에서 이미 진행 중이던 책을 다시 열면(=이어서 학습,
       // lastPlayedSentenceIndex > 0) 곧장 한 문장씩 자동재생으로 들어가는 대신 한꺼번에
@@ -221,48 +224,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       _overrunWatchdogSub =
           ref.read(audioPlayerServiceProvider).positionStream.listen(_watchForExternalOverrun);
 
-      // 2026-08-09: 잠금화면/알림 미니 플레이어의 이전·재생/정지·다음 버튼을 이
-      // 컨트롤러의 메서드로 직접 연결한다 — 알림이 재생기를 우회해서 만지지 않게 되어,
-      // 반복/속도 설정이 그대로 적용되고 정지도 진짜로 멈춘 채 있는다
-      // ([StudyAudioHandler] 문서 참고).
-      final handler = ref.read(audioHandlerProvider);
-      _audioHandler = handler;
-      handler.onNotificationPlay = () {
-        if (!mounted) return;
-        if (state.viewMode == ShadowingViewMode.single) {
-          resumeOrRestart();
-        } else {
-          playListFromCurrent();
-        }
-      };
-      handler.onNotificationPause = () {
-        if (!mounted) return;
-        if (state.viewMode == ShadowingViewMode.single) {
-          stopSingleMode();
-        } else {
-          stopListPlayback();
-        }
-      };
-      handler.onNotificationSkipToNext = () {
-        if (!mounted) return;
-        if (state.viewMode == ShadowingViewMode.single) {
-          skipToNext();
-        } else {
-          nextInList();
-        }
-      };
-      handler.onNotificationSkipToPrevious = () {
-        if (!mounted) return;
-        if (state.viewMode == ShadowingViewMode.single) {
-          skipToPrevious();
-        } else {
-          previousInList();
-        }
-      };
-      handler.updateNowPlaying(
-        fileName: media?.fileName ?? '',
-        artUri: media?.coverArtPath != null ? Uri.file(media!.coverArtPath!) : null,
-      );
+      claimNotificationCallbacks();
 
       if (initialViewMode == ShadowingViewMode.single) {
         _runSentenceLoop();
@@ -270,6 +232,79 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     } catch (_) {
       state = state.copyWith(isLoading: false, error: '학습 콘텐츠를 불러오지 못했어요');
     }
+  }
+
+  /// 잠금화면/알림 미니 플레이어의 이전·재생/정지·다음 버튼을 이 컨트롤러의 메서드로
+  /// 직접 연결한다 — 알림이 재생기를 우회해서 만지지 않게 되어, 반복/속도 설정이
+  /// 그대로 적용되고 정지도 진짜로 멈춘 채 있는다([StudyAudioHandler] 문서 참고).
+  ///
+  /// **2026-09-07 버그 수정 — 근본 원인**: `StudyAudioHandler`는 앱 전체 싱글톤인데,
+  /// 예전엔 이 등록을 [_init]에서 딱 한 번만 했다. `ShadowingController`는
+  /// `autoDispose.family`라 같은 mediaId로 다시 들어오면(예: 다른 영상 봤다가 이
+  /// 영상으로 돌아옴) 인스턴스가 재사용되며 [_init]이 다시 실행되지 않는다 — 그
+  /// 사이 다른 영상의 컨트롤러가 `_init()`을 돌며 알림 콜백을 자기 걸로 덮어썼다면,
+  /// 지금 화면에 보이는 이 컨트롤러로 다시 돌아와도 알림의 정지/재생 버튼은 여전히
+  /// "가장 최근에 초기화됐던" 다른(이미 화면에 없는) 컨트롤러를 가리키고 있었다.
+  /// 그 결과 사용자가 (실제로 소리를 내고 있는) 이 화면에서 정지를 눌러도 엉뚱한
+  /// 컨트롤러가 멈추고, 정작 재생 중이던 이 루프는 멈추라는 신호를 못 받아 자체
+  /// 끊김-감지 재시도 로직이 몇 초 뒤 스스로 재생을 재개해버렸다(실사용자 재현:
+  /// "정지 누르면 2~3초 뒤 저절로 다시 재생됨"). 화면이 실제로 보일 때마다
+  /// ([ShadowingScreen.initState] 참고) 이 메서드를 다시 호출해 콜백을 자기 것으로
+  /// 되찾아오게 한다 — 컨트롤러 인스턴스 재사용 여부와 무관하게 항상 "지금 보이는
+  /// 화면"이 알림을 소유한다.
+  void claimNotificationCallbacks() {
+    final handler = ref.read(audioHandlerProvider);
+    _audioHandler = handler;
+    handler.onNotificationPlay = () {
+      if (!mounted) return;
+      if (state.viewMode == ShadowingViewMode.single) {
+        resumeOrRestart();
+      } else {
+        playListFromCurrent();
+      }
+    };
+    handler.onNotificationPause = () {
+      if (!mounted) return;
+      if (state.viewMode == ShadowingViewMode.single) {
+        stopSingleMode();
+      } else {
+        stopListPlayback();
+      }
+    };
+    handler.onNotificationSkipToNext = () {
+      if (!mounted) return;
+      if (state.viewMode == ShadowingViewMode.single) {
+        skipToNext();
+      } else {
+        nextInList();
+      }
+    };
+    handler.onNotificationSkipToPrevious = () {
+      if (!mounted) return;
+      if (state.viewMode == ShadowingViewMode.single) {
+        skipToPrevious();
+      } else {
+        previousInList();
+      }
+    };
+    handler.updateNowPlaying(
+      fileName: _fileName,
+      artUri: _coverArtUri,
+      sentenceLabel: _sentenceLabel,
+    );
+  }
+
+  /// 2026-09-07 추가 — 사용자 요청: 미니 플레이어(알림)를 펼치면 파일명 아래에 지금
+  /// 재생 중인 문장 번호도 보여준다. `${currentIndex+1} / ${총 문장 수}` — 화면 맨 위
+  /// 진행률 표시와 같은 형식.
+  String? get _sentenceLabel =>
+      state.segments.isEmpty ? null : '${state.currentIndex + 1} / ${state.segments.length}';
+
+  /// 재생 중인 문장이 바뀔 때마다 [ShadowingScreen]이 호출해 알림의 문장 번호 표시를
+  /// 최신 상태로 갱신한다.
+  void refreshNowPlayingProgress() {
+    if (_audioHandler == null) return;
+    _audioHandler!.updateNowPlaying(fileName: _fileName, artUri: _coverArtUri, sentenceLabel: _sentenceLabel);
   }
 
   /// 2026-08-09 추가 — 잠금화면/알림 미니 플레이어 대응.
@@ -286,6 +321,14 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   Future<void> _watchForExternalOverrun(Duration pos) async {
     if (!mounted || _resyncingFromOverrun) return;
     if (state.viewMode != ShadowingViewMode.single) return;
+    // 2026-09-07 버그 수정: phase 확인이 빠져있었다 — 사용자가 정지 버튼을 눌러
+    // phase가 idle로 바뀐 뒤에도, 이 콜백이 이미 걸어둔 400ms 재확인 타이머(아래
+    // Future.delayed)가 살아있으면 그 사이 도착한 다른 위치 이벤트를 보고 "여전히
+    // 재생 중"으로 오판해 재동기화(=재생 재시작)를 걸 수 있었다 — 정지 버튼을 눌러도
+    // 2~3초 뒤 저절로 다시 재생되는 증상으로 실기기에서 재현됨. 지금 우리 쪽에서
+    // 의도적으로 듣기 단계가 아니라면(정지/말하기 대기 등) 애초에 "외부 개입"으로
+    // 볼 이유가 없다 — phase가 listening일 때만 이 감시를 계속한다.
+    if (state.phase != ShadowingPhase.listening) return;
     final segment = state.currentSegment;
     if (segment == null) return;
     const overrunMarginMs = 1200;
@@ -311,7 +354,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       return;
     }
 
-    debugPrint('[ShadowingController] external playback overran the current sentence boundary '
+    debugPrint('[ShadowingController] mediaId=$mediaId external playback overran the current sentence boundary '
         '(pos=${pos.inMilliseconds}ms endMs=${segment.endMs}ms) — resyncing to the study loop.');
     _gen++;
     await ref.read(audioPlayerServiceProvider).stopSegment();
@@ -323,7 +366,20 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
 
   @override
   void dispose() {
+    debugPrint('[ShadowingController] DISPOSED mediaId=$mediaId');
+    _gen++; // 진행 중이던 루프(있다면)가 다음 확인 시점에 스스로 멈추게 한다.
     _overrunWatchdogSub?.cancel();
+    // 2026-09-07 버그 수정 — 근본 원인: `AudioPlayerService`는 앱 전체에서 공유되는
+    // 싱글톤(provider가 `.family`가 아님)인데, 이 컨트롤러가 사라질 때 실제 재생을
+    // 멈추는 코드가 지금까지 어디에도 없었다(화면의 모든 나가기 경로 — X버튼/뒤로가기/
+    // 편집/요약화면 이동 — 도 마찬가지). 그래서 한 파일을 학습하다 다른 파일의 학습
+    // 화면으로 넘어가면, 이전 컨트롤러는 dispose됐지만 그 오디오는 계속 재생 중이고
+    // 새 컨트롤러가 같은 엔진에 새 재생을 걸면서 두 파일의 소리가 겹쳤다(실사용자 보고:
+    // "두 개의 영상 음성이 겹쳐 나옴"). `_runSentenceLoop`/`playListFromCurrent`의
+    // `await _playWithRetry(...)` 도중에 dispose가 오면, 그 안의 `await
+    // playSegmentOnce(...)`가 끝날 때까지는 `mounted` 재확인 시점 자체에 도달하지
+    // 못해 계속 재생되는 문제도 함께 있었다 — 여기서 명시적으로 멈춰야 확실하다.
+    unawaited(ref.read(audioPlayerServiceProvider).stopSegment());
     // 이 화면을 벗어날 때 알림 콜백을 해제하지 않으면, 학습 화면 밖(예: 홈)에서도
     // 알림 버튼이 이미 dispose된(mounted=false) 이 컨트롤러를 계속 참조하게 된다.
     _audioHandler?.clearCallbacks();
@@ -348,6 +404,8 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       if (segment == null) return;
 
       // ── 1) 원어민 음성 재생 ──────────────────────────────────
+      debugPrint('[ShadowingController] mediaId=$mediaId _runSentenceLoop iteration '
+          'gen=$myGen currentIndex=${state.currentIndex}');
       state = state.copyWith(
         phase: ShadowingPhase.listening,
         clearError: true,
@@ -455,6 +513,21 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
           state = state.copyWith(playbackProgressRatio: ratio);
         } catch (_) {}
       });
+      // 2026-09-07 버그 수정 — 근본 원인: `AudioPlayerService`는 앱 전체에서 공유되는
+      // 싱글톤인데, `playSegmentOnce`는 소스를 다시 로드하지 않고 "이미 로드돼 있는
+      // 파일"에 대고서만 seek/play한다. 이 컨트롤러가 `_init()`에서 자기 파일을 로드해둔
+      // 뒤로 화면을 벗어나 백그라운드에 남아있는 동안, 다른 파일의 학습화면이 같은
+      // 싱글톤에 자기 파일을 새로 로드해버리면 — 이 컨트롤러가 나중에(예: 사용자가 다시
+      // 이 화면으로 돌아와 재생 버튼을 누르면) 재생을 재개해도 실제로는 "화면은 이
+      // 파일인데 소리는 마지막으로 로드됐던 다른 파일"이 재생됐다(실사용자 재현: 영상
+      // A 재생 중 앱을 완전히 닫음(백그라운드에 A의 컨트롤러가 남음) → 영상 B를 열어
+      // 재생(공유 재생기 소스가 B로 바뀜) → B도 닫고 다시 A를 재생 → 화면은 A인데
+      // 소리는 B). 재생 직전에 항상 내 소스가 실제로 로드돼 있는지 다시 확인·복구한다
+      // (이미 맞는 소스면 `setSource` 내부에서 조용히 스킵되므로 매번 불러도 무해하다).
+      if (_audioSource.isNotEmpty) {
+        await ref.read(audioPlayerServiceProvider).setSource(_audioSource, isLocal: true);
+      }
+      if (!mounted || effectiveGen != _gen) return true;
       await ref.read(audioPlayerServiceProvider).playSegmentOnce(
             startMs: startMs,
             endMs: endMs,

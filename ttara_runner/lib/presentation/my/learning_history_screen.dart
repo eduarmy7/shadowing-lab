@@ -29,6 +29,29 @@ class LearningHistoryScreen extends ConsumerStatefulWidget {
 
 class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
   late int _selectedDay = DateTime.now().day;
+  // 2026-09-07 추가 — 사용자 요청: "지금 9월이면 9월꺼만 보이는데, 이전 모든 달 기록
+  // 다 볼 수 있게" — 달력에 보여줄 연/월을 상태로 들고, 화살표로 이전/다음 달을
+  // 넘나들 수 있게 한다. 기본값은 이번 달.
+  late int _visibleYear = DateTime.now().year;
+  late int _visibleMonth = DateTime.now().month;
+
+  void _changeMonth(int delta) {
+    setState(() {
+      var y = _visibleYear;
+      var m = _visibleMonth + delta;
+      if (m == 0) {
+        m = 12;
+        y -= 1;
+      } else if (m == 13) {
+        m = 1;
+        y += 1;
+      }
+      _visibleYear = y;
+      _visibleMonth = m;
+      final daysInNewMonth = DateTime(y, m + 1, 0).day;
+      _selectedDay = _selectedDay.clamp(1, daysInNewMonth);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,18 +86,30 @@ class _LearningHistoryScreenState extends ConsumerState<LearningHistoryScreen> {
             error: (e, st) => Center(child: Text(l10n.historyLoadError)),
             data: (dailyLog) {
               final now = DateTime.now();
-              final selectedEntries = dailyLog[_dateKey(now.year, now.month, _selectedDay)] ?? const [];
+              final isCurrentMonth = _visibleYear == now.year && _visibleMonth == now.month;
+              final selectedEntries =
+                  dailyLog[_dateKey(_visibleYear, _visibleMonth, _selectedDay)] ?? const [];
 
               return ListView(
                 padding: const EdgeInsets.all(AppSpacing.screenMargin),
                 children: [
                   _HeatmapGrid(
+                    year: _visibleYear,
+                    month: _visibleMonth,
                     heatmap: stats.dailyHeatmap,
                     selectedDay: _selectedDay,
                     onDaySelected: (day) => setState(() => _selectedDay = day),
+                    onPreviousMonth: () => _changeMonth(-1),
+                    // 미래 달은 학습 기록이 있을 수 없으니 이번 달에서 다음 달로는 못 넘어간다.
+                    onNextMonth: isCurrentMonth ? null : () => _changeMonth(1),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  _SelectedDayCard(year: now.year, month: now.month, day: _selectedDay, entries: selectedEntries),
+                  _SelectedDayCard(
+                    year: _visibleYear,
+                    month: _visibleMonth,
+                    day: _selectedDay,
+                    entries: selectedEntries,
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(l10n.cumulativeStats, style: theme.textTheme.titleMedium),
                   const SizedBox(height: AppSpacing.sm),
@@ -192,10 +227,23 @@ class _SelectedDayCard extends StatelessWidget {
 /// 날짜 칸을 탭하면 [onDaySelected]로 그 날짜를 알려주고, [selectedDay]에 해당하는
 /// 칸에는 선택 표시(테두리 링)를 그린다.
 class _HeatmapGrid extends StatelessWidget {
+  final int year;
+  final int month;
   final Map<String, int> heatmap;
   final int selectedDay;
   final ValueChanged<int> onDaySelected;
-  const _HeatmapGrid({required this.heatmap, required this.selectedDay, required this.onDaySelected});
+  final VoidCallback onPreviousMonth;
+  // null이면(이번 달) 다음 달로 못 넘어가게 버튼을 비활성화한다.
+  final VoidCallback? onNextMonth;
+  const _HeatmapGrid({
+    required this.year,
+    required this.month,
+    required this.heatmap,
+    required this.selectedDay,
+    required this.onDaySelected,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
+  });
 
   static const _weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -227,10 +275,12 @@ class _HeatmapGrid extends StatelessWidget {
         customBorder: const CircleBorder(),
         child: Center(
           child: Container(
-            padding: EdgeInsets.all(isSelected ? 2 : 0),
+            padding: const EdgeInsets.all(2),
+            // 2026-09-07 변경 — 사용자 요청: 선택 표시를 꽉 찬 검정 원 대신, 테두리만
+            // 있는 파란(primary) 원으로 바꾼다.
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isSelected ? theme.colorScheme.onSurface : Colors.transparent,
+              border: isSelected ? Border.all(color: theme.colorScheme.primary, width: 2) : null,
             ),
             child: Container(
               width: _dotDiameter,
@@ -284,9 +334,6 @@ class _HeatmapGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final now = DateTime.now();
-    final year = now.year;
-    final month = now.month;
     final daysInMonth = DateTime(year, month + 1, 0).day;
     // DateTime.weekday: 월=1 ... 일=7 → 일요일 시작 달력 기준(일=0 ... 토=6)으로 변환.
     final firstWeekday = DateTime(year, month, 1).weekday % 7;
@@ -294,7 +341,24 @@ class _HeatmapGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.monthGroupLabel(year, month), style: theme.textTheme.titleMedium),
+        // 2026-09-07 추가 — 사용자 요청: 이번 달만 보이던 걸 이전 달들도 넘겨서 볼 수
+        // 있게 좌우 화살표를 붙인다.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              tooltip: l10n.previousMonthTooltip,
+              onPressed: onPreviousMonth,
+            ),
+            Text(l10n.monthGroupLabel(year, month), style: theme.textTheme.titleMedium),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              tooltip: l10n.nextMonthTooltip,
+              onPressed: onNextMonth,
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.sm),
         // 2026-08-28: 달력 전체 크기를 살짝 줄여달라는 요청 — 칸 자체를 좀 더
         // 좁게(childAspectRatio↑ = 칸이 더 납작하게) 잡고 칸 사이 간격도 줄였다.

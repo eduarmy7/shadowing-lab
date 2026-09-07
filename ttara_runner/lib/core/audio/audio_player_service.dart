@@ -81,6 +81,7 @@ class AudioPlayerService {
   /// 표지는 이제 `StudyAudioHandler.updateNowPlaying()`이 별도로 관리한다(재생 중인
   /// 파일의 `AudioSource` 자체와는 무관).
   Future<void> setSource(String pathOrUrl, {required bool isLocal}) async {
+    debugPrint('[AudioPlayerService] setSource requested: $pathOrUrl (current=$_currentSource)');
     if (_currentSource == pathOrUrl) return;
 
     try {

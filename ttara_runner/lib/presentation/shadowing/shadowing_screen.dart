@@ -60,6 +60,14 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     Future.microtask(() {
       if (mounted) ref.read(isShadowingScreenMountedProvider.notifier).state = true;
     });
+    // 2026-09-07 추가 — `ShadowingController.claimNotificationCallbacks` 문서 참고:
+    // 컨트롤러는 `autoDispose.family`라 같은 mediaId로 재진입하면 인스턴스가 재사용될
+    // 수 있고, 그러면 컨트롤러의 `_init()`이 다시 실행되지 않아 알림 콜백이 그 사이
+    // 다른 영상 쪽으로 넘어가 있을 수 있다. 화면이 실제로 뜰 때마다(=지금) 무조건
+    // 알림 콜백을 이 화면의 컨트롤러 걸로 되찾아온다.
+    Future.microtask(() {
+      if (mounted) ref.read(shadowingControllerProvider(widget.mediaId).notifier).claimNotificationCallbacks();
+    });
   }
 
   @override
@@ -121,6 +129,11 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     ref.listen(shadowingControllerProvider(widget.mediaId), (prev, next) async {
       if (next.error != null && next.error != prev?.error) {
         AppToast.show(context, next.error!, type: AppToastType.error);
+      }
+      // 2026-09-07 추가 — 사용자 요청: 재생 중인 문장이 바뀔 때마다 미니 플레이어
+      // (알림)의 문장 번호 표시도 같이 갱신한다.
+      if (next.currentIndex != prev?.currentIndex) {
+        controller.refreshNowPlayingProgress();
       }
       // 2026-08-13: "20문장마다" 전면 광고 트리거(사용자 확정 규칙) — 완료 문장 수가
       // 20의 배수를 막 넘어선 순간에만 1회 발동시키려고 이전/이후 개수를 비교한다.
@@ -321,7 +334,10 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
                           );
 
                           final mediaWidget = Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                            // 2026-09-07 변경 — 사용자 요청: 영상이 더 커 보이도록 좌우 여백을
+                            // 절반으로 줄인다(xl 32 → md 16). 자막(subtitleWidget)의 여백은
+                            // 그대로 xl 유지.
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                             // 2026-09-01: 영상 파일이면 파형 대신 원본 영상을 무음으로 보여준다
                             // (실제 소리는 여전히 AudioPlayerService/WaveformPlayer 쪽 로직과
                             // 동일하게 재생됨 — SentenceVideoPlayer 문서 참고).
@@ -738,10 +754,15 @@ class _SentenceListViewState extends State<_SentenceListView> {
                   const SizedBox(width: AppSpacing.sm),
                   if (segment.hasText)
                     Expanded(
+                      // 2026-09-07 변경 — 사용자 요청: 한꺼번에 보기 목록은 문장 길이와
+                      // 무관하게 항상 고정 크기(SentenceCard.subtitleMaxFontSize, 18)로
+                      // 보여준다 — 줄어드는 건 한 문장씩 보기에서만. 줄 수 제한 없이
+                      // 필요한 만큼 줄바꿈한다(예전 고정 Text와 동일).
                       child: Text(
                         segment.text!,
                         style: theme.textTheme.bodyLarge?.copyWith(
                           fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
+                          fontSize: SentenceCard.subtitleMaxFontSize,
                         ),
                       ),
                     )

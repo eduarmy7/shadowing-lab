@@ -145,9 +145,32 @@ class _TtaraAppState extends ConsumerState<TtaraApp> with WidgetsBindingObserver
   }
 
   void _returnHomeIfSessionEnded() {
-    if (!ref.read(isShadowingScreenMountedProvider)) return;
+    final isMounted = ref.read(isShadowingScreenMountedProvider);
     final hasActiveSession = ref.read(audioHandlerProvider).mediaItem.value != null;
-    if (!hasActiveSession) ref.read(appRouterProvider).go('/home');
+    debugPrint('[TtaraApp] _returnHomeIfSessionEnded: isShadowingScreenMounted=$isMounted '
+        'hasActiveSession=$hasActiveSession');
+    if (!isMounted) return;
+    if (!hasActiveSession) {
+      // 2026-09-07 버그 수정 — 근본 원인: `/shadowing/:mediaId`는 `StatefulShellRoute`
+      // 바깥에 `push()`로 쌓이는 풀스크린 라우트인데, `go('/home')`는 라우터의 현재
+      // 위치만 '/home'으로 옮길 뿐 그 전에 `push()`로 쌓아둔 학습화면 페이지 자체를
+      // 내비게이터에서 실제로 제거(dispose)하지 못했다 — 실기기 로그로 확인:
+      // `go('/home')`는 매번 호출됐지만 `ShadowingScreen.dispose()`/`ShadowingController.
+      // dispose()`는 단 한 번도 찍히지 않았다. 그 결과 이전 학습화면(과 그 컨트롤러)이
+      // 화면에만 안 보일 뿐 계속 살아있었고, 그 컨트롤러의 "외부 재생 감시" 로직이
+      // 나중에 다른 영상이 재생을 시작하면 위치가 자기 문장 범위를 벗어난 것으로 보고
+      // 강제로 자기(예전) 음성을 다시 재생시켰다(실사용자 재현: "영상은 새로 고른 걸
+      // 보여주는데 소리는 이전 영상 것"). `go()` 대신 쌓여있는 페이지를 실제로 하나씩
+      // pop해서 확실히 제거한다.
+      final router = ref.read(appRouterProvider);
+      var popped = 0;
+      while (router.canPop()) {
+        router.pop();
+        popped++;
+      }
+      debugPrint('[TtaraApp] _returnHomeIfSessionEnded: popped $popped route(s), then go(/home)');
+      router.go('/home');
+    }
   }
 
   @override

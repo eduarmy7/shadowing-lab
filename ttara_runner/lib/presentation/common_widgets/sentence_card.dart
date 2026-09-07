@@ -29,6 +29,12 @@ class SentenceCard extends StatelessWidget {
   final double fontScale;
   final Widget? footer;
 
+  // 2026-09-07 — 자막 최대 글씨 크기. 원래 화면 맨 위 "N / 전체" 진행률 표시
+  // (AppTypography.body, 15sp)와 맞췄다가 실기기 확인 결과 너무 작다는 피드백으로
+  // 16 → 18로 두 차례 키움. 한꺼번에 보기(list) 목록 자막도 같은 상한을 쓴다
+  // (아래 [_buildList] 참고) — 문장이 길면 더 작아질 순 있어도 이보다 커지진 않는다.
+  static const double subtitleMaxFontSize = 18;
+
   const SentenceCard({
     super.key,
     required this.variant,
@@ -59,7 +65,9 @@ class SentenceCard extends StatelessWidget {
       children: [
         Text(
           '#${segment.index + 1}',
-          style: AppTypography.caption.copyWith(
+          // 2026-09-07 변경 — 사용자 요청: 화면 맨 위 "N / 전체" 진행률 표시와 같은
+          // 크기로 통일(AppTypography.body, 15sp). 예전엔 caption(12sp)이라 더 작았다.
+          style: AppTypography.body.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w600,
           ),
@@ -100,20 +108,32 @@ class SentenceCard extends StatelessWidget {
             showingTranslation ? segment.translation! : segment.text!,
             textAlign: TextAlign.center,
             maxLines: 8,
-            minFontSize: showingTranslation ? 14 : 16,
+            minFontSize: showingTranslation ? 10 : 11,
             style: AppTypography.sentence.copyWith(
               color: showingTranslation ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.onSurface,
-              // 최소 20sp ~ 최대 56sp: 짧은 문장은 크게, 긴 문장은 AutoSizeText가 줄바꿈하며 줄인다.
-              fontSize: (30 * fontScale).clamp(20.0, 56.0),
+              // 2026-09-07 변경 — 사용자 요청: 자막 최대 글씨 크기를 화면 맨 위
+              // "N / 전체" 진행률 표시(AppTypography.body, 15sp)에 맞췄다가, 실기기로
+              // 보니 너무 작다는 피드백으로 1포인트 키움(16sp) — 그보다 커지면 안 되고,
+              // 글이 많으면 AutoSizeText가 더 작게 줄인다.
+              fontSize: (subtitleMaxFontSize * fontScale).clamp(11.0, subtitleMaxFontSize),
             ),
           );
 
     return Column(
       mainAxisSize: MainAxisSize.max,
       children: [
+        // 2026-09-07 변경 — 사용자 요청: 문장 번호(#N)를 자막 바로 위에 붙인다.
+        // **처음 시도(오버플로우 버그)**: header+mainText를 Column(mainAxisSize.min)
+        // 하나로 묶어 Center로 감쌌더니, AutoSizeText가 "여기까지만 써도 된다"는
+        // 확정된 높이 제약을 못 받아 긴 문장(6줄 이상)에서 화면 아래로 넘쳐버렸다
+        // (실기기 재현: "BOTTOM OVERFLOWED BY 7.8 PIXELS"). header는 원래대로 카드
+        // 맨 위 고정 자리에 두되, mainText만 남은 공간(Expanded)에 넣고 세로 중앙
+        // 정렬(Center) 대신 위쪽 정렬(Align topCenter)로 바꿔 — 자막 길이와 무관하게
+        // header 바로 아래에서 시작하면서도, Expanded가 주는 확정된 높이 안에서
+        // AutoSizeText가 정상적으로 자동 축소된다.
         header,
         const SizedBox(height: AppSpacing.xs),
-        Expanded(child: Center(child: mainText)),
+        Expanded(child: Align(alignment: Alignment.topCenter, child: mainText)),
         if (segment.translation != null) ...[
           const SizedBox(height: AppSpacing.xs),
           InkWell(

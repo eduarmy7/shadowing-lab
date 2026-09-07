@@ -1,4 +1,5 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:just_audio/just_audio.dart' show ProcessingState;
 
 import 'audio_player_service.dart';
@@ -88,13 +89,24 @@ class StudyAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
-  /// 학습 화면에 진입할 때 호출 — 알림에 표시할 정보를 채운다. "쉐도잉랩"을 제목으로,
-  /// 실제 파일명을 그 아래 부제로 보여준다(음악 앱의 곡명/아티스트 자리와 동일한 구성).
-  void updateNowPlaying({required String fileName, Uri? artUri}) {
+  /// 학습 화면에 진입할 때, 그리고 재생 중인 문장이 바뀔 때마다 호출 — 알림에 표시할
+  /// 정보를 채운다. "쉐도잉랩"을 제목으로, 실제 파일명(+ 문장 번호)을 그 아래 부제로
+  /// 보여준다(음악 앱의 곡명/아티스트 자리와 동일한 구성).
+  ///
+  /// **2026-09-07 버그 수정(1)**: 예전엔 파일명을 `album`(안드로이드 알림에서
+  /// `MediaDescriptionCompat.getDescription()`이 채우는 자리)에 넣고 있었는데,
+  /// `NotificationCompat.setSubText()`로 매핑되는 이 자리는 MediaStyle 알림에서
+  /// 본문 줄이 아니라 앱 이름 옆 작은 보조 텍스트로 렌더링돼(펼쳐도 잘 안 보임)
+  /// 실제로는 거의 눈에 안 띄었다. 접힌 상태에서도 항상 보이는 자리는 `artist`
+  /// (`setContentText`)뿐이다.
+  /// **2026-09-07 버그 수정(2)**: 문장 번호를 처음엔 `album`에 따로 넣었는데
+  /// (수정(1)과 같은 이유로) 실기기에서 전혀 안 보였다 — 파일명과 문장 번호를
+  /// 한 줄로 합쳐 `artist`에 넣어야 확실히 보인다.
+  void updateNowPlaying({required String fileName, Uri? artUri, String? sentenceLabel}) {
     mediaItem.add(MediaItem(
       id: fileName,
       title: '쉐도잉랩',
-      album: fileName,
+      artist: sentenceLabel == null ? fileName : '$fileName · $sentenceLabel',
       artUri: artUri,
       duration: _service.duration,
     ));
@@ -166,8 +178,23 @@ class StudyAudioHandler extends BaseAudioHandler with SeekHandler {
   /// 서비스(와 그 알림)를 통째로 정리하는데, `audio_service`의 [onTaskRemoved] 기본
   /// 구현은 아무 것도 안 해서(위 [onNotificationDeleted]와 달리) [mediaItem]이
   /// 그대로 남아 같은 버그로 이어진다. 이 경로에서도 세션 정보를 지운다.
+  /// **2026-09-07 버그 수정 — 위 [clearNowPlaying]만으로는 부족했다.** "세션 정보"만
+  /// 지우고 실제 재생은 멈추지 않아서, 사용자가 앱을 최근 목록에서 스와이프해 지운
+  /// 뒤(체감상 "완전히 앱을 닫았다")에도 오디오는 백그라운드에서 계속 흘렀다. 그
+  /// 상태에서 다른 파일을 열어 재생을 시작하면, 이전 파일의 소리와 새로 시작한
+  /// 파일의 소리가 동시에 들리는 문제로 이어졌다(실사용자 재현: 1번 영상 3번 문장
+  /// 재생 도중 앱을 스와이프해 닫음 → 나중에 2번 영상 1번 문장을 재생 → 둘 다 동시에
+  /// 들림). [onNotificationDeleted]와 동일하게 재생도 확실히 멈춘 뒤 세션 정보를
+  /// 지운다.
   @override
   Future<void> onTaskRemoved() async {
+    debugPrint('[StudyAudioHandler] onTaskRemoved CALLED (onNotificationPause registered: '
+        '${onNotificationPause != null})');
+    if (onNotificationPause != null) {
+      onNotificationPause!();
+    } else {
+      await _service.pause();
+    }
     clearNowPlaying();
   }
 
