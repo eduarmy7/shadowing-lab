@@ -148,6 +148,17 @@ class ShadowingSessionState {
 /// (`shadowing_screen.dart`의 `initState`/`dispose`에서 갱신).
 final isShadowingScreenMountedProvider = StateProvider<bool>((ref) => false);
 
+/// 2026-09-10 추가 — 근본 원인: `AudioPlayerService`는 앱 전체 공유 싱글톤인데,
+/// `ShadowingController`는 라우터가 예전 화면을 제대로 dispose하지 않는 경우가 실제로
+/// 있어(로그로 확인됨 — `go('/home')`를 호출해도 `dispose()`가 안 찍히는 사례) 여러
+/// 인스턴스가 동시에 살아있을 수 있다. "다른 파일을 열면 이전 재생은 반드시 멈춰야
+/// 한다"를 라우터/위젯 생명주기에 기대지 않고 **재생 로직 자체에서 강제**하기 위한
+/// 장치 — 지금 어떤 mediaId가 "현재 활성 세션"인지 담아두고, 모든 컨트롤러는 실제로
+/// 재생을 진행하기 전에 매번 "내가 아직 활성 세션이 맞는가"를 확인한다. 아니라면
+/// (더 최근에 다른 파일이 열렸다는 뜻) 조용히 스스로 멈춘다 — dispose가 안 됐어도
+/// 안전하다.
+final activeMediaSessionProvider = StateProvider<String?>((ref) => null);
+
 final shadowingControllerProvider = StateNotifierProvider.autoDispose
     .family<ShadowingController, ShadowingSessionState, String>(
   (ref, mediaId) => ShadowingController(ref, mediaId),
@@ -172,6 +183,9 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   bool _resyncingFromOverrun = false;
   StudyAudioHandler? _audioHandler;
 
+  /// activeMediaSessionProvider 문서 참고 — 더 최근에 열린 다른 파일이 있으면 false.
+  bool get _isActiveSession => ref.read(activeMediaSessionProvider) == mediaId;
+
   // 2026-08-10: 전체 학습기록(#11) 실시간 집계용 — 문장이 완료 처리될 때마다
   // "마지막 기록 이후 흐른 시간"을 그 문장(오늘 날짜+이 콘텐츠)에 귀속시킨다.
   // 정확한 스톱워치는 아니지만(따라 말하기 대기시간 등도 포함), 실제 학습에 쓴
@@ -180,6 +194,22 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
 
   ShadowingController(this.ref, this.mediaId) : super(ShadowingSessionState()) {
     debugPrint('[ShadowingController] CREATED mediaId=$mediaId');
+    // 2026-09-10 버그 수정 — 사용자 재현: "공부하다가 정지 안 누르고 다른 음성/영상을
+    // 클릭하면 이중으로 재생됨". 새 컨트롤러가 만들어지는 바로 그 순간, 이전에 누가
+    // 활성 세션이었든 상관없이 즉시 이 mediaId가 새 활성 세션임을 선언하고 공유
+    // 재생기를 강제로 멈춘다 — 사용자가 정지 버튼을 누를 필요 없이 자동으로 처리된다.
+    // **버그 수정(2)**: 이 대입을 생성자에서 바로 동기적으로 실행하면 "다른 프로바이더가
+    // 빌드되는 도중에 또 다른 프로바이더 상태를 바꿨다"는 Riverpod의 재진입 방지
+    // assertion(`_debugCurrentlyBuildingElement == null`)에 걸려 실기기에서 즉시
+    // 빨간 에러 화면으로 이어졌다(실측 확인) — 이 컨트롤러 자체가 지금 막
+    // `ref.watch(shadowingControllerProvider(...))` 빌드 도중에 생성되는 중이기
+    // 때문. 같은 프레임 안에서 상태를 바꾸는 대신 `Future.microtask`로 한 틱 미뤄서
+    // 빌드가 끝난 뒤에 안전하게 실행한다.
+    Future.microtask(() {
+      if (!mounted) return;
+      ref.read(activeMediaSessionProvider.notifier).state = mediaId;
+      unawaited(ref.read(audioPlayerServiceProvider).stopSegment());
+    });
     _init();
   }
 
@@ -319,7 +349,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
   /// 우리 쪽 재생이라면 절대 벗어날 수 없으므로 외부 개입으로 간주하고 — 재생을 멈추고
   /// 현재 문장을 반복 횟수/속도 설정 그대로 다시 시작한다.
   Future<void> _watchForExternalOverrun(Duration pos) async {
-    if (!mounted || _resyncingFromOverrun) return;
+    if (!mounted || _resyncingFromOverrun || !_isActiveSession) return;
     if (state.viewMode != ShadowingViewMode.single) return;
     // 2026-09-07 버그 수정: phase 확인이 빠져있었다 — 사용자가 정지 버튼을 눌러
     // phase가 idle로 바뀐 뒤에도, 이 콜백이 이미 걸어둔 400ms 재확인 타이머(아래
@@ -399,7 +429,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     final myGen = ++_gen;
     var isFirstIteration = true;
     while (true) {
-      if (myGen != _gen || !mounted) return;
+      if (myGen != _gen || !mounted || !_isActiveSession) return;
       final segment = state.currentSegment;
       if (segment == null) return;
 
@@ -415,11 +445,11 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       final shouldResume = isFirstIteration && resumeFromPause;
       isFirstIteration = false;
       final played = await _playWithRetry(segment.startMs, segment.endMs, seek: !shouldResume, myGen: myGen);
-      if (myGen != _gen || !mounted) return;
+      if (myGen != _gen || !mounted || !_isActiveSession) return;
       if (!played) return; // 재시도까지 실패 — 사용자가 원형 버튼으로 수동 재시작
 
       await Future.delayed(const Duration(milliseconds: 300));
-      if (myGen != _gen || !mounted) return;
+      if (myGen != _gen || !mounted || !_isActiveSession) return;
 
       // ── 2) 따라 말하기 (앱은 녹음/분석하지 않음 — 사용자가 소리 내어 말할 시간만 확보) ──
       state = state.copyWith(phase: ShadowingPhase.speaking);
@@ -434,7 +464,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         speakingDurationMs = speakingDurationMs.clamp(500, 1 << 31);
       }
       await Future.delayed(Duration(milliseconds: speakingDurationMs));
-      if (myGen != _gen || !mounted) return;
+      if (myGen != _gen || !mounted || !_isActiveSession) return;
 
       HapticFeedback.lightImpact();
       final newCompleted = state.completedRepeats + 1;
@@ -451,7 +481,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         );
         await _persistProgress(doneSet.length);
         await Future.delayed(const Duration(milliseconds: 600));
-        if (myGen != _gen || !mounted) return;
+        if (myGen != _gen || !mounted || !_isActiveSession) return;
 
         if (state.isLastSentence) {
           return; // 화면에서 세션 완료를 감지해 요약 화면으로 이동시킴
@@ -501,7 +531,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
         // finally에서 하지만 그 사이 이벤트가 이미 큐에 있었을 수 있음) — mounted
         // 확인 없이 state를 쓰면 "Tried to use ShadowingController after dispose"로
         // 앱이 죽는다(실기기에서 재현: 문장을 몇 개 넘긴 뒤 재생하면 크래시).
-        if (!mounted || effectiveGen != _gen) return;
+        if (!mounted || effectiveGen != _gen || !_isActiveSession) return;
         final ratio = ((pos.inMilliseconds - startMs) / segmentDurationMs).clamp(0.0, 1.0);
         // 2026-09-01 버그 수정: 위 확인들(컨트롤러 dispose 여부 + 세대 번호)을 다 통과해도,
         // 화면 전환 타이밍에 따라 StateNotifier는 살아있지만 그걸 구독하던 위젯 Element가
@@ -527,7 +557,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       if (_audioSource.isNotEmpty) {
         await ref.read(audioPlayerServiceProvider).setSource(_audioSource, isLocal: true);
       }
-      if (!mounted || effectiveGen != _gen) return true;
+      if (!mounted || effectiveGen != _gen || !_isActiveSession) return true;
       await ref.read(audioPlayerServiceProvider).playSegmentOnce(
             startMs: startMs,
             endMs: endMs,
@@ -741,18 +771,18 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
     // 갑자기 뒤 문장이 나온다"(재생 내용이 뒤섞여 들림). _gen 체크만으로는 오래된
     // 루프가 "다음 확인 시점에" 멈추는 것뿐이라, 이미 걸어둔 재생 자체는 막지 못한다.
     await ref.read(audioPlayerServiceProvider).stopSegment();
-    if (myGen != _gen || !mounted) return;
+    if (myGen != _gen || !mounted || !_isActiveSession) return;
     while (true) {
-      if (myGen != _gen || !mounted) return;
+      if (myGen != _gen || !mounted || !_isActiveSession) return;
       final segment = state.currentSegment;
       if (segment == null) return;
 
       var completed = state.completedRepeats;
       while (completed < state.targetRepeats) {
-        if (myGen != _gen || !mounted) return;
+        if (myGen != _gen || !mounted || !_isActiveSession) return;
         state = state.copyWith(phase: ShadowingPhase.listening, clearError: true);
         final played = await _playWithRetry(segment.startMs, segment.endMs, myGen: myGen);
-        if (myGen != _gen || !mounted) return;
+        if (myGen != _gen || !mounted || !_isActiveSession) return;
         if (!played) {
           state = state.copyWith(phase: ShadowingPhase.idle);
           return; // 재시도까지 실패 — 사용자가 다시 탭해야 재개
@@ -769,7 +799,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
           final gapMs = state.sentenceGapMode.gapMsFor(segment.durationMs);
           if (gapMs > 0) state = state.copyWith(phase: ShadowingPhase.speaking);
           await Future.delayed(Duration(milliseconds: gapMs));
-          if (myGen != _gen || !mounted) return;
+          if (myGen != _gen || !mounted || !_isActiveSession) return;
         }
       }
 
@@ -777,7 +807,7 @@ class ShadowingController extends StateNotifier<ShadowingSessionState> {
       final doneSet = {...state.fullyCompletedIndices, state.currentIndex};
       state = state.copyWith(fullyCompletedIndices: doneSet);
       await _persistProgress(doneSet.length);
-      if (myGen != _gen || !mounted) return;
+      if (myGen != _gen || !mounted || !_isActiveSession) return;
 
       if (state.isLastSentence) {
         state = state.copyWith(phase: ShadowingPhase.idle, completedRepeats: 0);

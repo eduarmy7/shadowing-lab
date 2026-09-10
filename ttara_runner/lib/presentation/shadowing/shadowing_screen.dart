@@ -68,6 +68,15 @@ class _ShadowingScreenState extends ConsumerState<ShadowingScreen> {
     Future.microtask(() {
       if (mounted) ref.read(shadowingControllerProvider(widget.mediaId).notifier).claimNotificationCallbacks();
     });
+    // 2026-09-10 추가 — 재현된 버그: 미니플레이어로 듣다가 정지 -> 미니플레이어/앱을
+    // 완전히 닫고 재진입 -> 같은 파일 재생 시도 -> 재생 자체가 안 됨. 원인: 위
+    // claimNotificationCallbacks와 똑같은 이유(`autoDispose.family` 인스턴스 재사용 시
+    // 생성자가 다시 안 돎)로, `activeMediaSessionProvider` 소유권 선언도 생성자 안에서만
+    // 하고 있었다. 이 화면이 실제로 뜰 때마다 무조건 다시 선언해야 재사용된 컨트롤러도
+    // `_isActiveSession`이 true가 된다.
+    Future.microtask(() {
+      if (mounted) ref.read(activeMediaSessionProvider.notifier).state = widget.mediaId;
+    });
   }
 
   @override
